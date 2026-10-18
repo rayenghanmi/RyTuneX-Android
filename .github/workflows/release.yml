@@ -1,0 +1,148 @@
+name: Create RyTuneX Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Release Tag (e.g. v1.0.0). Leave empty to use versionName from build.gradle.kts'
+        required: false
+        default: ''
+        type: string
+      release_title:
+        description: 'Release Title (e.g. RyTuneX Android v1.0.0). Leave empty to auto-format'
+        required: false
+        default: ''
+        type: string
+      custom_notes:
+        description: 'Custom Release Notes / Changelog (Optional). Leave empty to auto-generate from Git commit log'
+        required: false
+        default: ''
+        type: string
+      is_prerelease:
+        description: 'Mark as Pre-release'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & Publish Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Determine Version and Release Metadata
+        id: meta
+        shell: bash
+        run: |
+          if [ -n "${{ inputs.version_tag }}" ]; then
+            TAG="${{ inputs.version_tag }}"
+          else
+            VERSION=$(grep 'versionName = ' app/build.gradle.kts | head -n1 | sed -E 's/.*"([^"]+)".*/\1/')
+            TAG="v${VERSION}"
+          fi
+
+          if [ -n "${{ inputs.release_title }}" ]; then
+            TITLE="${{ inputs.release_title }}"
+          else
+            TITLE="RyTuneX Android $TAG"
+          fi
+
+          echo "TAG=$TAG" >> $GITHUB_ENV
+          echo "TITLE=$TITLE" >> $GITHUB_ENV
+          echo "Determined Tag: $TAG"
+          echo "Determined Title: $TITLE"
+
+      - name: Generate Changelog and Release Notes
+        shell: bash
+        run: |
+          CUSTOM_NOTES="${{ inputs.custom_notes }}"
+
+          if [ -n "$CUSTOM_NOTES" ]; then
+            echo "$CUSTOM_NOTES" > release_notes.md
+          else
+            echo "## $TITLE" > release_notes.md
+            echo "" >> release_notes.md
+            
+            # Find previous tag if any
+            PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+            
+            if [ -n "$PREV_TAG" ]; then
+              echo "### Changes since $PREV_TAG" >> release_notes.md
+              echo "" >> release_notes.md
+              git log --no-merges --pretty=format:"- %s (%h)" "$PREV_TAG..HEAD" | sed -E 's/^- (feat|fix|chore|docs|refactor|perf|style|test)(\([^)]+\))?:\s*/- /I' >> release_notes.md
+            else
+              echo "### Changes" >> release_notes.md
+              echo "" >> release_notes.md
+              git log --no-merges --pretty=format:"- %s (%h)" -n 30 | sed -E 's/^- (feat|fix|chore|docs|refactor|perf|style|test)(\([^)]+\))?:\s*/- /I' >> release_notes.md
+            fi
+
+            echo "" >> release_notes.md
+            echo "---" >> release_notes.md
+            echo "### Highlights" >> release_notes.md
+            echo "- **App Update Engine**: In-app GitHub release detection, optional pre-release channel, direct progress downloader with S3 redirect support, and privileged Shizuku installation." >> release_notes.md
+            echo "- **Adaptive Tuning & Debloat**: Granular package management powered by UAD Next-Gen, hardware refresh rate locks, and zero-daemon optimization profiles." >> release_notes.md
+            echo "- **Material 3 Expressive UI**: Dynamic color elevation, ambient system telemetry, and fluid navigation ergonomics." >> release_notes.md
+            echo "" >> release_notes.md
+            echo "### Requirements" >> release_notes.md
+            echo "- Android 8.0 (API 26) through Android 16+ (API 36)" >> release_notes.md
+            echo "- Privileged operations require [Shizuku](https://shizuku.rikka.app/) (ADB UID 2000, No Root Required) or Root" >> release_notes.md
+          fi
+
+      - name: Build Release APK
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Prepare Release Assets and Checksums
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/release/app-release.apk "dist/RyTuneX-Android-${TAG}.apk"
+
+          cd dist
+          sha256sum "RyTuneX-Android-${TAG}.apk" > SHA256SUMS.txt
+          cd ..
+
+          echo "" >> release_notes.md
+          echo "### Checksums (SHA-256)" >> release_notes.md
+          echo "\`\`\`" >> release_notes.md
+          cat dist/SHA256SUMS.txt >> release_notes.md
+          echo "\`\`\`" >> release_notes.md
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          name: ${{ env.TITLE }}
+          body_path: release_notes.md
+          prerelease: ${{ inputs.is_prerelease }}
+          draft: false
+          files: |
+            dist/RyTuneX-Android-${{ env.TAG }}.apk
+            dist/SHA256SUMS.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Release Artifacts to Workflow
+        uses: actions/upload-artifact@v4
+        with:
+          name: RyTuneX-Android-${{ env.TAG }}
+          path: dist/*
