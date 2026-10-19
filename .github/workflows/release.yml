@@ -67,45 +67,44 @@ jobs:
             TITLE="RyTuneX Android $TAG"
           fi
 
-          echo "TAG=$TAG" >> $GITHUB_ENV
-          echo "TITLE=$TITLE" >> $GITHUB_ENV
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "TITLE=$TITLE" >> "$GITHUB_ENV"
           echo "Determined Tag: $TAG"
           echo "Determined Title: $TITLE"
 
       - name: Generate Changelog and Release Notes
         shell: bash
+        env:
+          CUSTOM_NOTES: ${{ inputs.custom_notes }}
         run: |
-          CUSTOM_NOTES="${{ inputs.custom_notes }}"
-
           if [ -n "$CUSTOM_NOTES" ]; then
-            echo "$CUSTOM_NOTES" > release_notes.md
+            printf '%s\n' "$CUSTOM_NOTES" > release_notes.md
           else
             echo "## $TITLE" > release_notes.md
             echo "" >> release_notes.md
-            
-            # Find previous tag if any
+
+            # Find the previous tag reachable from HEAD
             PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-            
+
             if [ -n "$PREV_TAG" ]; then
               echo "### Changes since $PREV_TAG" >> release_notes.md
               echo "" >> release_notes.md
-              git log --no-merges --pretty=format:"- %s (%h)" "$PREV_TAG..HEAD" | sed -E 's/^- (feat|fix|chore|docs|refactor|perf|style|test)(\([^)]+\))?:\s*/- /I' >> release_notes.md
+              git log --no-merges --pretty=format:"- %s (%h)" "$PREV_TAG..HEAD" \
+                | sed -E 's/^- (feat|fix|chore|docs|refactor|perf|style|test)(\([^)]+\))?:[[:space:]]*/- /I' \
+                >> release_notes.md
             else
               echo "### Changes" >> release_notes.md
               echo "" >> release_notes.md
-              git log --no-merges --pretty=format:"- %s (%h)" -n 30 | sed -E 's/^- (feat|fix|chore|docs|refactor|perf|style|test)(\([^)]+\))?:\s*/- /I' >> release_notes.md
+              git log --no-merges --pretty=format:"- %s (%h)" -n 30 \
+                | sed -E 's/^- (feat|fix|chore|docs|refactor|perf|style|test)(\([^)]+\))?:[[:space:]]*/- /I' \
+                >> release_notes.md
             fi
 
             echo "" >> release_notes.md
             echo "---" >> release_notes.md
-            echo "### Highlights" >> release_notes.md
-            echo "- **App Update Engine**: In-app GitHub release detection, optional pre-release channel, direct progress downloader with S3 redirect support, and privileged Shizuku installation." >> release_notes.md
-            echo "- **Adaptive Tuning & Debloat**: Granular package management powered by UAD Next-Gen, hardware refresh rate locks, and zero-daemon optimization profiles." >> release_notes.md
-            echo "- **Material 3 Expressive UI**: Dynamic color elevation, ambient system telemetry, and fluid navigation ergonomics." >> release_notes.md
-            echo "" >> release_notes.md
             echo "### Requirements" >> release_notes.md
             echo "- Android 8.0 (API 26) through Android 16+ (API 36)" >> release_notes.md
-            echo "- Privileged operations require [Shizuku](https://shizuku.rikka.app/) (ADB UID 2000, No Root Required) or Root" >> release_notes.md
+            echo "- Privileged operations require [Shizuku](https://shizuku.rikka.app/) (ADB UID 2000, no root required) or root" >> release_notes.md
           fi
 
       - name: Build Release APK
@@ -123,9 +122,9 @@ jobs:
 
           echo "" >> release_notes.md
           echo "### Checksums (SHA-256)" >> release_notes.md
-          echo "\`\`\`" >> release_notes.md
+          echo '```' >> release_notes.md
           cat dist/SHA256SUMS.txt >> release_notes.md
-          echo "\`\`\`" >> release_notes.md
+          echo '```' >> release_notes.md
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
