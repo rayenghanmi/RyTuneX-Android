@@ -133,13 +133,12 @@ fun AppUpdateDialog(
                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 200.dp)
+                        .heightIn(min = 60.dp, max = 260.dp)
                 ) {
                     Box(modifier = Modifier.padding(12.dp).verticalScroll(rememberScrollState())) {
-                        Text(
-                            text = releaseInfo.changelog,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface
+                        MarkdownContent(
+                            markdown = releaseInfo.changelog,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
@@ -226,50 +225,31 @@ fun AppUpdateDialog(
             }
         },
         confirmButton = {
-            when (val state = downloadState) {
-                is DownloadState.Downloading -> {
-                    Button(onClick = {}, enabled = false, shape = RoundedCornerShape(14.dp)) {
-                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Downloading...")
-                    }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Later Button
+                TextButton(
+                    onClick = {
+                        AppUpdateManager.resetDownloadState()
+                        onDismissRequest()
+                    },
+                    enabled = downloadState !is DownloadState.Downloading,
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = "Later",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1
+                    )
                 }
-                is DownloadState.Completed -> {
-                    Button(
-                        onClick = {
-                            scope.launch {
-                                AppUpdateManager.installApk(context, state.apkFile, onLogUpdate)
-                            }
-                        },
-                        shape = RoundedCornerShape(14.dp)
-                    ) {
-                        Icon(Icons.Rounded.InstallMobile, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Install Update", fontWeight = FontWeight.Bold)
-                    }
-                }
-                else -> {
-                    Button(
-                        onClick = {
-                            scope.launch {
-                                val dlResult = AppUpdateManager.downloadApk(context, releaseInfo)
-                                if (dlResult.isSuccess) {
-                                    val apk = dlResult.getOrThrow()
-                                    AppUpdateManager.installApk(context, apk, onLogUpdate)
-                                }
-                            }
-                        },
-                        shape = RoundedCornerShape(14.dp)
-                    ) {
-                        Icon(Icons.Rounded.Download, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Update Now", fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        },
-        dismissButton = {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+
+                // GitHub Button
                 OutlinedButton(
                     onClick = {
                         try {
@@ -281,21 +261,100 @@ fun AppUpdateDialog(
                             Toast.makeText(context, "Could not open browser: ${e.message}", Toast.LENGTH_SHORT).show()
                         }
                     },
-                    shape = RoundedCornerShape(14.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                    modifier = Modifier.weight(1f)
                 ) {
-                    Text("GitHub")
+                    Text(
+                        text = "GitHub",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1
+                    )
                 }
 
-                TextButton(
-                    onClick = {
-                        AppUpdateManager.resetDownloadState()
-                        onDismissRequest()
-                    },
-                    enabled = downloadState !is DownloadState.Downloading
-                ) {
-                    Text("Later")
+                // Update / Install Action Button
+                when (val state = downloadState) {
+                    is DownloadState.Downloading -> {
+                        Button(
+                            onClick = {},
+                            enabled = false,
+                            shape = RoundedCornerShape(12.dp),
+                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 8.dp),
+                            modifier = Modifier.weight(1.3f)
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(14.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "${state.progressPercent}%",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                    is DownloadState.Completed -> {
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    AppUpdateManager.installApk(context, state.apkFile, onLogUpdate)
+                                }
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                            modifier = Modifier.weight(1.3f)
+                        ) {
+                            Icon(
+                                Icons.Rounded.InstallMobile,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Install",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                    else -> {
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    val dlResult = AppUpdateManager.downloadApk(context, releaseInfo)
+                                    if (dlResult.isSuccess) {
+                                        val apk = dlResult.getOrThrow()
+                                        AppUpdateManager.installApk(context, apk, onLogUpdate)
+                                    }
+                                }
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                            modifier = Modifier.weight(1.3f)
+                        ) {
+                            Icon(
+                                Icons.Rounded.Download,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Update",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1
+                            )
+                        }
+                    }
                 }
             }
-        }
+        },
+        dismissButton = null
+
     )
 }
