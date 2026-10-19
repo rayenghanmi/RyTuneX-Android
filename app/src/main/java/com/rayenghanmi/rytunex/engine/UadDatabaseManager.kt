@@ -22,6 +22,40 @@ import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
 
+data class BatchActionResult(
+    val commandResult: CommandResult,
+    val totalCount: Int,
+    val successCount: Int,
+    val ignoredNotFoundCount: Int,
+    val failedCount: Int
+) {
+    val isOverallSuccess: Boolean
+        get() = commandResult.isSuccess && failedCount == 0 && (successCount > 0 || (totalCount > 0 && ignoredNotFoundCount == totalCount))
+
+    fun getSummary(actionName: String): String {
+        val verb = when (actionName.lowercase()) {
+            "freeze" -> "froze"
+            "uninstall" -> "uninstalled"
+            "restore" -> "restored"
+            else -> "${actionName.lowercase()}d"
+        }
+        return when {
+            successCount > 0 && ignoredNotFoundCount > 0 ->
+                "Successfully $verb $successCount packages ($ignoredNotFoundCount not found, ignored)"
+            successCount > 0 && ignoredNotFoundCount == 0 && failedCount == 0 ->
+                "Successfully $verb $successCount packages"
+            successCount > 0 && failedCount > 0 ->
+                "${verb.replaceFirstChar { it.uppercase() }} $successCount packages ($failedCount failed, $ignoredNotFoundCount ignored)"
+            successCount == 0 && ignoredNotFoundCount > 0 && failedCount == 0 ->
+                "All $ignoredNotFoundCount packages are not present on this device (ignored)"
+            totalCount == 0 ->
+                "No packages selected"
+            else ->
+                "Batch $actionName failed (${commandResult.stderr.ifBlank { commandResult.stdout }.take(60)})"
+        }
+    }
+}
+
 object UadDatabaseManager {
 
     private const val UAD_REMOTE_URL =
@@ -334,21 +368,118 @@ object UadDatabaseManager {
         ShellEngine.exec("cmd package install-existing $packageName && pm enable $packageName")
     }
 
-    suspend fun batchFreeze(packages: List<String>): CommandResult = withContext(Dispatchers.IO) {
-        if (packages.isEmpty()) return@withContext CommandResult("", "No packages selected.", "", 0, true)
-        val cmd = packages.joinToString(" && ") { "pm disable-user --user 0 $it" }
-        ShellEngine.exec(cmd, timeoutMs = 30000L)
+    suspend fun batchFreeze(packages: List<String>): BatchActionResult = withContext(Dispatchers.IO) {
+        val validPackages = packages.map { it.trim() }.filter { it.matches(Regex("""[a-zA-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z0-9_]+)+""")) }.distinct()
+        if (validPackages.isEmpty()) {
+            return@withContext BatchActionResult(CommandResult("", "No valid packages selected.", "", 0, true), 0, 0, 0, 0)
+        }
+        val sb = StringBuilder()
+        sb.append("for p in ")
+        validPackages.forEach { sb.append(it).append(" ") }
+        sb.append("; do echo \"===PKG:\$p===\"; pm disable-user --user 0 \"\$p\" 2>&1; done; exit 0")
+        val timeout = maxOf(30000L, validPackages.size * 600L)
+        val res = ShellEngine.exec(sb.toString(), timeoutMs = timeout)
+        parseBatchResult(res, validPackages, "freeze")
     }
 
-    suspend fun batchUninstall(packages: List<String>): CommandResult = withContext(Dispatchers.IO) {
-        if (packages.isEmpty()) return@withContext CommandResult("", "No packages selected.", "", 0, true)
-        val cmd = packages.joinToString(" && ") { "pm uninstall -k --user 0 $it" }
-        ShellEngine.exec(cmd, timeoutMs = 30000L)
+    suspend fun batchUninstall(packages: List<String>): BatchActionResult = withContext(Dispatchers.IO) {
+        val validPackages = packages.map { it.trim() }.filter { it.matches(Regex("""[a-zA-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z0-9_]+)+""")) }.distinct()
+        if (validPackages.isEmpty()) {
+            return@withContext BatchActionResult(CommandResult("", "No valid packages selected.", "", 0, true), 0, 0, 0, 0)
+        }
+        val sb = StringBuilder()
+        sb.append("for p in ")
+        validPackages.forEach { sb.append(it).append(" ") }
+        sb.append("; do echo \"===PKG:\$p===\"; pm uninstall -k --user 0 \"\$p\" 2>&1; done; exit 0")
+        val timeout = maxOf(30000L, validPackages.size * 600L)
+        val res = ShellEngine.exec(sb.toString(), timeoutMs = timeout)
+        parseBatchResult(res, validPackages, "uninstall")
     }
 
-    suspend fun batchRestore(packages: List<String>): CommandResult = withContext(Dispatchers.IO) {
-        if (packages.isEmpty()) return@withContext CommandResult("", "No packages selected.", "", 0, true)
-        val cmd = packages.joinToString(" && ") { "cmd package install-existing $it && pm enable $it" }
-        ShellEngine.exec(cmd, timeoutMs = 30000L)
+    suspend fun batchRestore(packages: List<String>): BatchActionResult = withContext(Dispatchers.IO) {
+        val validPackages = packages.map { it.trim() }.filter { it.matches(Regex("""[a-zA-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z0-9_]+)+""")) }.distinct()
+        if (validPackages.isEmpty()) {
+            return@withContext BatchActionResult(CommandResult("", "No valid packages selected.", "", 0, true), 0, 0, 0, 0)
+        }
+        val sb = StringBuilder()
+        sb.append("for p in ")
+        validPackages.forEach { sb.append(it).append(" ") }
+        sb.append("; do echo \"===PKG:\$p===\"; cmd package install-existing \"\$p\" 2>&1; pm enable \"\$p\" 2>&1; done; exit 0")
+        val timeout = maxOf(30000L, validPackages.size * 600L)
+        val res = ShellEngine.exec(sb.toString(), timeoutMs = timeout)
+        parseBatchResult(res, validPackages, "restore")
+    }
+
+    private fun parseBatchResult(res: CommandResult, packages: List<String>, action: String): BatchActionResult {
+        if (!res.isSuccess && res.exitCode < 0) {
+            return BatchActionResult(res, packages.size, 0, 0, packages.size)
+        }
+
+        var successCount = 0
+        var ignoredNotFoundCount = 0
+        var failedCount = 0
+
+        val blocks = res.stdout.split("===PKG:")
+        val processedPackages = mutableSetOf<String>()
+
+        for (block in blocks) {
+            if (block.isBlank()) continue
+            val lines = block.lines()
+            val pkg = lines.firstOrNull()?.trim()?.substringBefore("===") ?: continue
+            processedPackages.add(pkg)
+            val output = lines.drop(1).joinToString("\n").trim()
+
+            val isNotFound = output.contains("not installed", ignoreCase = true) ||
+                    output.contains("doesn't exist", ignoreCase = true) ||
+                    output.contains("unknown package", ignoreCase = true) ||
+                    output.contains("package not found", ignoreCase = true) ||
+                    output.contains("Cannot disable a package that is not installed", ignoreCase = true) ||
+                    output.contains("Cannot enable a package that is not installed", ignoreCase = true) ||
+                    output.contains("not found", ignoreCase = true)
+
+            if (isNotFound) {
+                ignoredNotFoundCount++
+            } else {
+                when (action) {
+                    "freeze" -> {
+                        if (output.contains("disabled", ignoreCase = true) || output.contains("Success", ignoreCase = true)) {
+                            successCount++
+                        } else {
+                            failedCount++
+                        }
+                    }
+                    "uninstall" -> {
+                        if (output.contains("Success", ignoreCase = true)) {
+                            successCount++
+                        } else {
+                            failedCount++
+                        }
+                    }
+                    "restore" -> {
+                        if (output.contains("installed for user", ignoreCase = true) || output.contains("enabled", ignoreCase = true) || output.contains("Success", ignoreCase = true)) {
+                            successCount++
+                        } else {
+                            failedCount++
+                        }
+                    }
+                    else -> {
+                        if (output.contains("Success", ignoreCase = true)) successCount++ else failedCount++
+                    }
+                }
+            }
+        }
+
+        val missingBlocks = packages.size - processedPackages.size
+        if (missingBlocks > 0 && failedCount == 0 && successCount == 0 && ignoredNotFoundCount == 0) {
+            failedCount += missingBlocks
+        }
+
+        return BatchActionResult(
+            commandResult = res,
+            totalCount = packages.size,
+            successCount = successCount,
+            ignoredNotFoundCount = ignoredNotFoundCount,
+            failedCount = failedCount
+        )
     }
 }

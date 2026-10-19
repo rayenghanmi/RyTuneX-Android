@@ -383,7 +383,7 @@ fun SettingsScreen(
             GoogleSectionHeader(title = "About")
             MaterialSettingsCard(
                 title = "RyTuneX for Android",
-                description = "Version 1.0.0 • Advanced Open-Source Tuning Engine for Power Users & Gamers",
+                description = "Version ${com.rayenghanmi.rytunex.BuildConfig.VERSION_NAME} • Advanced Open-Source Tuning Engine for Power Users & Gamers",
                 icon = Icons.Rounded.Info,
                 position = SettingsCardPosition.GroupedSingle,
                 onClick = { showAboutDialog = true },
@@ -432,7 +432,7 @@ fun SettingsScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Version 1.0.0 • Advanced Tuning Engine",
+                            text = "Version ${com.rayenghanmi.rytunex.BuildConfig.VERSION_NAME} • Advanced Tuning Engine",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.primary

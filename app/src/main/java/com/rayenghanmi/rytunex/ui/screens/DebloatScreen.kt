@@ -47,7 +47,7 @@ import com.rayenghanmi.rytunex.model.UadRecommendation
 import com.rayenghanmi.rytunex.theme.SemanticGreen
 import com.rayenghanmi.rytunex.theme.SemanticPurple
 import com.rayenghanmi.rytunex.theme.SemanticRed
-import com.rayenghanmi.rytunex.ui.components.FloatingTopPillHeader
+import com.rayenghanmi.rytunex.ui.components.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -209,6 +209,32 @@ fun DebloatScreen(
         }
     }
 
+    val openDocumentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            scope.launch(Dispatchers.IO) {
+                try {
+                    val content = context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                        inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+                    } ?: ""
+                    withContext(Dispatchers.Main) {
+                        if (content.isNotBlank()) {
+                            importInputText = content
+                            Toast.makeText(context, "Loaded debloat preset file", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(context, "Selected preset file is empty", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Failed to read file: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+    }
+
     fun runBatchWithConfirmation(actionName: String, count: Int, isDestructive: Boolean = false, action: () -> Unit) {
         if (isDestructive || SettingsManager.confirmTweaks) {
             pendingBatchConfirmTitle = "Confirm Batch $actionName"
@@ -226,63 +252,69 @@ fun DebloatScreen(
         }
     }
 
-    fun executeBatchFreeze() {
-        val count = selectedPackageNames.size
+    fun executeBatchFreeze(packagesToTarget: Collection<String> = selectedPackageNames) {
+        val list = packagesToTarget.toList()
+        if (list.isEmpty()) return
+        val count = list.size
         runBatchWithConfirmation("Freeze", count) {
             scope.launch {
                 isExecutingBatch = true
-                val res = UadDatabaseManager.batchFreeze(selectedPackageNames.toList())
+                val res = UadDatabaseManager.batchFreeze(list)
                 isExecutingBatch = false
-                val isSuccess = res.isSuccess && !res.stdout.contains("Failure", ignoreCase = true)
+                val isSuccess = res.isOverallSuccess || res.successCount > 0
                 if (isSuccess) {
-                    Toast.makeText(context, "Successfully froze $count packages", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, res.getSummary("Freeze"), Toast.LENGTH_SHORT).show()
                 } else {
-                    val err = res.stderr.ifBlank { res.stdout }.ifBlank { "Exit code ${res.exitCode}" }
+                    val err = res.commandResult.stderr.ifBlank { res.commandResult.stdout }.ifBlank { "Exit code ${res.commandResult.exitCode}" }
                     Toast.makeText(context, "Batch freeze failed: $err", Toast.LENGTH_LONG).show()
                 }
-                onLogUpdate("[BATCH FREEZE]: ${res.output}")
+                onLogUpdate("[BATCH FREEZE]: ${res.getSummary("Freeze")}\n${res.commandResult.output}")
                 selectedPackageNames = emptySet()
                 refreshApps()
             }
         }
     }
 
-    fun executeBatchUninstall() {
-        val count = selectedPackageNames.size
+    fun executeBatchUninstall(packagesToTarget: Collection<String> = selectedPackageNames) {
+        val list = packagesToTarget.toList()
+        if (list.isEmpty()) return
+        val count = list.size
         runBatchWithConfirmation("Uninstall", count, isDestructive = true) {
             scope.launch {
                 isExecutingBatch = true
-                val res = UadDatabaseManager.batchUninstall(selectedPackageNames.toList())
+                val res = UadDatabaseManager.batchUninstall(list)
                 isExecutingBatch = false
-                val isSuccess = res.isSuccess && !res.stdout.contains("Failure", ignoreCase = true)
+                val isSuccess = res.isOverallSuccess || res.successCount > 0
                 if (isSuccess) {
-                    Toast.makeText(context, "Successfully uninstalled $count packages", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, res.getSummary("Uninstall"), Toast.LENGTH_SHORT).show()
                 } else {
-                    val err = res.stderr.ifBlank { res.stdout }.ifBlank { "Exit code ${res.exitCode}" }
+                    val err = res.commandResult.stderr.ifBlank { res.commandResult.stdout }.ifBlank { "Exit code ${res.commandResult.exitCode}" }
                     Toast.makeText(context, "Batch uninstall failed: $err", Toast.LENGTH_LONG).show()
                 }
-                onLogUpdate("[BATCH UNINSTALL]: ${res.output}")
+                onLogUpdate("[BATCH UNINSTALL]: ${res.getSummary("Uninstall")}\n${res.commandResult.output}")
                 selectedPackageNames = emptySet()
                 refreshApps()
             }
         }
     }
 
-    fun executeBatchRestore() {
-        val count = selectedPackageNames.size
+    fun executeBatchRestore(packagesToTarget: Collection<String> = selectedPackageNames) {
+        val list = packagesToTarget.toList()
+        if (list.isEmpty()) return
+        val count = list.size
         runBatchWithConfirmation("Restore", count) {
             scope.launch {
                 isExecutingBatch = true
-                val res = UadDatabaseManager.batchRestore(selectedPackageNames.toList())
+                val res = UadDatabaseManager.batchRestore(list)
                 isExecutingBatch = false
-                val isSuccess = res.isSuccess && !res.stdout.contains("Failure", ignoreCase = true)
+                val isSuccess = res.isOverallSuccess || res.successCount > 0
                 if (isSuccess) {
-                    Toast.makeText(context, "Successfully restored $count packages", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, res.getSummary("Restore"), Toast.LENGTH_SHORT).show()
                 } else {
-                    val err = res.stderr.ifBlank { res.stdout }.ifBlank { "Exit code ${res.exitCode}" }
+                    val err = res.commandResult.stderr.ifBlank { res.commandResult.stdout }.ifBlank { "Exit code ${res.commandResult.exitCode}" }
                     Toast.makeText(context, "Batch restore failed: $err", Toast.LENGTH_LONG).show()
                 }
-                onLogUpdate("[BATCH RESTORE]: ${res.output}")
+                onLogUpdate("[BATCH RESTORE]: ${res.getSummary("Restore")}\n${res.commandResult.output}")
                 selectedPackageNames = emptySet()
                 refreshApps()
             }
@@ -1379,11 +1411,27 @@ fun DebloatScreen(
         val detectedPackages = remember(importInputText) {
             extractPackageNames(importInputText)
         }
-        val matchingApps = remember(detectedPackages, apps) {
+        val packageAnalysis = remember(detectedPackages, apps) {
             val appMap = apps.associateBy { it.packageName }
-            detectedPackages.mapNotNull { appMap[it] }
+            val presentToDebloat = mutableListOf<DebloatApp>()
+            val alreadyDebloated = mutableListOf<DebloatApp>()
+            val notOnDevice = mutableListOf<String>()
+
+            for (pkg in detectedPackages) {
+                val app = appMap[pkg]
+                if (app == null) {
+                    notOnDevice.add(pkg)
+                } else if (!app.isEnabled || !app.isInstalled) {
+                    alreadyDebloated.add(app)
+                } else {
+                    presentToDebloat.add(app)
+                }
+            }
+            Triple(presentToDebloat, alreadyDebloated, notOnDevice)
         }
-        val notInstalledCount = detectedPackages.size - matchingApps.size
+        val presentToDebloat = packageAnalysis.first
+        val alreadyDebloated = packageAnalysis.second
+        val notOnDevice = packageAnalysis.third
 
         AlertDialog(
             onDismissRequest = { showImportDialog = false },
@@ -1397,7 +1445,7 @@ fun DebloatScreen(
             },
             title = {
                 Text(
-                    text = "Import & Auto-Select",
+                    text = "Import Debloat Preset",
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.titleLarge
                 )
@@ -1410,7 +1458,7 @@ fun DebloatScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = "Paste a list of package names from clipboard, notes, a forum, or another device. RyTuneX will match installed apps and auto-select them for batch action.",
+                        text = "Paste package names or open a preset file shared from another phone. Packages not present on this device are automatically ignored so presets can be shared universally.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1434,7 +1482,7 @@ fun DebloatScreen(
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         FilledTonalButton(
@@ -1448,17 +1496,30 @@ fun DebloatScreen(
                                 }
                             },
                             shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                         ) {
                             Icon(Icons.Rounded.ContentPaste, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Paste from Clipboard", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                            Text("Paste", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                        }
+
+                        FilledTonalButton(
+                            onClick = {
+                                openDocumentLauncher.launch(arrayOf("text/plain", "*/*"))
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Icon(Icons.Rounded.FileOpen, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Open File", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                         }
 
                         if (importInputText.isNotEmpty()) {
+                            Spacer(modifier = Modifier.weight(1f))
                             TextButton(
                                 onClick = { importInputText = "" },
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
                             ) {
                                 Text("Clear")
                             }
@@ -1477,7 +1538,7 @@ fun DebloatScreen(
                         ) {
                             Column(
                                 modifier = Modifier.padding(12.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 if (detectedPackages.isEmpty()) {
                                     Text(
@@ -1497,17 +1558,26 @@ fun DebloatScreen(
                                             modifier = Modifier.size(16.dp)
                                         )
                                         Text(
-                                            text = "Detected ${detectedPackages.size} packages",
+                                            text = "Detected ${detectedPackages.size} packages in preset",
                                             style = MaterialTheme.typography.labelMedium,
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.onSurface
                                         )
                                     }
                                     Text(
-                                        text = "${matchingApps.size} installed on this device • $notInstalledCount not found",
+                                        text = "• ${presentToDebloat.size} installed & active on this device" +
+                                                (if (alreadyDebloated.isNotEmpty()) "\n• ${alreadyDebloated.size} already debloated on this device" else "") +
+                                                (if (notOnDevice.isNotEmpty()) "\n• ${notOnDevice.size} not present on this phone (will be ignored)" else ""),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
+                                    if (notOnDevice.isNotEmpty()) {
+                                        Text(
+                                            text = "Packages from other devices that are not installed here are safely ignored without aborting.",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -1515,31 +1585,77 @@ fun DebloatScreen(
                 }
             },
             confirmButton = {
-                Button(
-                    onClick = {
-                        val toSelect = matchingApps.map { it.packageName }.toSet()
-                        selectedPackageNames = selectedPackageNames + toSelect
-                        activeFilter = "all"
-                        showImportDialog = false
-                        Toast.makeText(
-                            context,
-                            "Selected ${matchingApps.size} apps from import list",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        scope.launch { listState.animateScrollToItem(0) }
-                    },
-                    enabled = matchingApps.isNotEmpty(),
-                    shape = RoundedCornerShape(14.dp)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = if (matchingApps.isNotEmpty()) "Select ${matchingApps.size} Apps" else "No Apps to Select",
-                        fontWeight = FontWeight.Bold
-                    )
+                    if (presentToDebloat.isNotEmpty()) {
+                        val defaultDebloat = SettingsManager.defaultDebloatAction
+                        val debloatActionLabel = if (defaultDebloat == DebloatAction.FREEZE) "Freeze" else "Uninstall"
+
+                        FilledTonalButton(
+                            onClick = {
+                                val toSelect = presentToDebloat.map { it.packageName }.toSet()
+                                selectedPackageNames = selectedPackageNames + toSelect
+                                activeFilter = "all"
+                                showImportDialog = false
+                                Toast.makeText(
+                                    context,
+                                    "Selected ${presentToDebloat.size} apps from preset" + (if (notOnDevice.isNotEmpty()) " (${notOnDevice.size} not found ignored)" else ""),
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                scope.launch { listState.animateScrollToItem(0) }
+                            },
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Text(
+                                text = "Select (${presentToDebloat.size})",
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Button(
+                            onClick = {
+                                val targetPkgs = presentToDebloat.map { it.packageName }
+                                showImportDialog = false
+                                if (defaultDebloat == DebloatAction.FREEZE) {
+                                    executeBatchFreeze(targetPkgs)
+                                } else {
+                                    executeBatchUninstall(targetPkgs)
+                                }
+                            },
+                            shape = RoundedCornerShape(14.dp),
+                            colors = if (defaultDebloat == DebloatAction.UNINSTALL) {
+                                ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.error,
+                                    contentColor = MaterialTheme.colorScheme.onError
+                                )
+                            } else {
+                                ButtonDefaults.buttonColors()
+                            }
+                        ) {
+                            Text(
+                                text = "$debloatActionLabel (${presentToDebloat.size})",
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    } else {
+                        Button(
+                            onClick = {},
+                            enabled = false,
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Text(
+                                text = if (detectedPackages.isEmpty()) "No Apps Detected" else if (alreadyDebloated.isNotEmpty()) "All Already Debloated" else "No Matching Apps",
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showImportDialog = false }) {
-                    Text("Cancel")
+                    Text("Close")
                 }
             }
         )

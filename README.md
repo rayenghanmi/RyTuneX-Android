@@ -10,7 +10,7 @@
   </p>
 
   <p align="center">
-    <img src="https://img.shields.io/badge/Release-v1.0.0-FE6093?style=for-the-badge&logo=github&logoColor=white" alt="Version 1.0.0" />
+    <img src="https://img.shields.io/badge/Release-v1.0.1-FE6093?style=for-the-badge&logo=github&logoColor=white" alt="Version 1.0.1" />
     <img src="https://img.shields.io/badge/Android-8.0%2B%20to%2016-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android 8.0+" />
     <img src="https://img.shields.io/badge/Kotlin-Jetpack_Compose-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white" alt="Kotlin Jetpack Compose" />
     <img src="https://img.shields.io/badge/Shizuku-UID_2000-008080?style=for-the-badge" alt="Shizuku UID 2000" />

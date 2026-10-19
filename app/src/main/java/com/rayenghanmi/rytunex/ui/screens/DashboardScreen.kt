@@ -731,7 +731,7 @@ fun DashboardScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Version 1.0.0 • Advanced Tuning Engine",
+                            text = "Version ${com.rayenghanmi.rytunex.BuildConfig.VERSION_NAME} • Advanced Tuning Engine",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.primary
