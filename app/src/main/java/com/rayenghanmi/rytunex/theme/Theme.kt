@@ -6,6 +6,7 @@ import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
@@ -98,9 +99,10 @@ fun RyTuneXTheme(
 
     MaterialTheme(
         colorScheme = colors,
-        typography = AppTypography,
-        content = content
-    )
+        typography = AppTypography
+    ) {
+        ProvideTextStyle(value = AppTypography.bodyMedium, content = content)
+    }
 }
 
 // Backward compatibility overload for existing call sites
