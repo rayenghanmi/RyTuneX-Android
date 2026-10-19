@@ -410,7 +410,7 @@ fun SettingsScreen(
 
         // About Pop-up Dialog
         if (showAboutDialog) {
-            AlertDialog(
+            ExpressiveAlertDialog(
                 onDismissRequest = { showAboutDialog = false },
                 icon = {
                     Image(
@@ -498,7 +498,7 @@ fun SettingsScreen(
 
         // Reset Confirmation Dialog
         if (showResetDialog) {
-            AlertDialog(
+            ExpressiveAlertDialog(
                 onDismissRequest = { showResetDialog = false },
                 title = { Text("Roll Back All Changes?") },
                 text = { Text("This will revert display refresh rate overrides, animation scale (1.0x), touch response, window blurs, Vulkan HWUI renderer, Force 2D HWUI, predictive back gestures, private DNS, and telemetry suppression back to original system defaults.") },

@@ -709,7 +709,7 @@ fun DashboardScreen(
 
         // About Pop-up Dialog
         if (showAboutDialog) {
-            AlertDialog(
+            ExpressiveAlertDialog(
                 onDismissRequest = { showAboutDialog = false },
                 icon = {
                     Image(
@@ -796,7 +796,7 @@ fun DashboardScreen(
 
         // Profile Deployment Confirmation Dialog
         pendingProfileToConfirm?.let { profile ->
-            AlertDialog(
+            ExpressiveAlertDialog(
                 onDismissRequest = { pendingProfileToConfirm = null },
                 icon = { Icon(Icons.Rounded.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
                 title = { Text("Deploy ${profile.title}?", fontWeight = FontWeight.Bold) },

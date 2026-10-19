@@ -35,7 +35,7 @@ fun AppUpdateDialog(
     val downloadState = AppUpdateManager.downloadState
     val currentVersion = remember { AppUpdateManager.getCurrentVersion(context) }
 
-    AlertDialog(
+    ExpressiveAlertDialog(
         onDismissRequest = {
             if (downloadState !is DownloadState.Downloading) {
                 AppUpdateManager.resetDownloadState()

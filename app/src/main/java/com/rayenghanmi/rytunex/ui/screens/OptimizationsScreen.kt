@@ -1115,7 +1115,7 @@ fun OptimizationsScreen(
 
         // Tweak Confirmation Dialog (governed by SettingsManager.confirmTweaks)
         pendingConfirmAction?.let { action ->
-            AlertDialog(
+            ExpressiveAlertDialog(
                 onDismissRequest = { pendingConfirmAction = null },
                 icon = { Icon(Icons.Rounded.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
                 title = { Text(pendingConfirmTitle, fontWeight = FontWeight.Bold) },

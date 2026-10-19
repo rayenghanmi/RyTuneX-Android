@@ -973,7 +973,7 @@ fun DebloatScreen(
 
     // Google Material 3 Inspection Dialog
     inspectingApp?.let { app ->
-        AlertDialog(
+        ExpressiveAlertDialog(
             onDismissRequest = { inspectingApp = null },
             title = {
                 Row(
@@ -1187,7 +1187,7 @@ fun DebloatScreen(
 
     // Single App Uninstall Confirmation Dialog
     pendingUninstallApp?.let { app ->
-        AlertDialog(
+        ExpressiveAlertDialog(
             onDismissRequest = { pendingUninstallApp = null },
             icon = { Icon(Icons.Rounded.DeleteForever, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
             title = { Text("Confirm Uninstallation", fontWeight = FontWeight.Bold) },
@@ -1233,7 +1233,7 @@ fun DebloatScreen(
 
     // Batch Action Confirmation Dialog (governed by SettingsManager.confirmTweaks)
     pendingBatchConfirmAction?.let { action ->
-        AlertDialog(
+        ExpressiveAlertDialog(
             onDismissRequest = { pendingBatchConfirmAction = null },
             icon = { Icon(Icons.Rounded.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
             title = { Text(pendingBatchConfirmTitle, fontWeight = FontWeight.Bold) },
@@ -1276,7 +1276,7 @@ fun DebloatScreen(
             "# RyTuneX Debloat Preset (${activeList.size} packages)\n" + activeList.joinToString("\n")
         }
 
-        AlertDialog(
+        ExpressiveAlertDialog(
             onDismissRequest = { showExportDialog = false },
             icon = {
                 Icon(
@@ -1433,7 +1433,7 @@ fun DebloatScreen(
         val alreadyDebloated = packageAnalysis.second
         val notOnDevice = packageAnalysis.third
 
-        AlertDialog(
+        ExpressiveAlertDialog(
             onDismissRequest = { showImportDialog = false },
             icon = {
                 Icon(
