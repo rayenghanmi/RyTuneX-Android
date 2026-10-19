@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.os.Environment
 import android.widget.Toast
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -348,8 +349,75 @@ object AppUpdateManager {
     }
 
     /**
-     * Installs the downloaded APK.
-     * Uses privileged Shizuku package manager if available, or invokes Android's standard package installer.
+     * Copies the downloaded APK into Shizuku shell's environment via process stdin.
+     */
+    private fun stageApkToShell(apkFile: File, dstPath: String): Boolean {
+        var process: Process? = null
+        return try {
+            val method = Shizuku::class.java.getDeclaredMethod(
+                "newProcess",
+                Array<String>::class.java,
+                Array<String>::class.java,
+                String::class.java
+            )
+            method.isAccessible = true
+            val proc = method.invoke(null, arrayOf("sh", "-c", "cat > \"$dstPath\""), null, null) as Process
+            process = proc
+
+            apkFile.inputStream().use { input ->
+                proc.outputStream.use { output ->
+                    input.copyTo(output)
+                    output.flush()
+                }
+            }
+            proc.waitFor() == 0
+        } catch (_: Exception) {
+            false
+        } finally {
+            process?.let { p ->
+                try {
+                    if (p.isAlive) p.destroyForcibly()
+                } catch (_: Throwable) {}
+            }
+        }
+    }
+
+    /**
+     * Writes arbitrary script content to the shell environment.
+     */
+    private fun writeScriptToShell(content: String, dstPath: String): Boolean {
+        var process: Process? = null
+        return try {
+            val method = Shizuku::class.java.getDeclaredMethod(
+                "newProcess",
+                Array<String>::class.java,
+                Array<String>::class.java,
+                String::class.java
+            )
+            method.isAccessible = true
+            val proc = method.invoke(null, arrayOf("sh", "-c", "cat > \"$dstPath\""), null, null) as Process
+            process = proc
+
+            proc.outputStream.bufferedWriter(Charsets.UTF_8).use { writer ->
+                writer.write(content)
+                writer.flush()
+            }
+            proc.waitFor() == 0
+        } catch (_: Exception) {
+            false
+        } finally {
+            process?.let { p ->
+                try {
+                    if (p.isAlive) p.destroyForcibly()
+                } catch (_: Throwable) {}
+            }
+        }
+    }
+
+    /**
+     * Installs the downloaded APK by uninstalling the older build first (purging any certificate/hash
+     * mismatch) and installing the new APK, preserving preferences across the installation,
+     * then relaunching RyTuneX.
      */
     suspend fun installApk(
         context: Context,
@@ -360,29 +428,85 @@ object AppUpdateManager {
             return@withContext Result.failure(Exception("APK file does not exist on disk."))
         }
 
-        // 1. Privileged Shizuku silent install if authorized
-        var shizukuInstalled = false
-        try {
-            if (Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
-                onLogUpdate?.invoke("[UPDATE]: Installing via privileged Shizuku PM: ${apkFile.name}...")
-                val res = ShellEngine.exec("pm install -r \"${apkFile.absolutePath}\"")
-                if (res.isSuccess && !res.stdout.contains("Failure", ignoreCase = true)) {
-                    shizukuInstalled = true
-                    onLogUpdate?.invoke("[UPDATE SUCCESS]: ${res.output}")
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "RyTuneX update installed successfully!", Toast.LENGTH_LONG).show()
-                    }
-                    return@withContext Result.success(true)
-                } else {
-                    onLogUpdate?.invoke("[UPDATE PM NOTICE]: Shizuku pm install returned: ${res.output}. Launching standard system installer.")
+        // 1. Privileged Shizuku uninstall-then-install update
+        if (Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
+            try {
+                onLogUpdate?.invoke("[UPDATE]: Staging update APK to shell environment...")
+                val stagedApkPath = "/data/local/tmp/rytunex_update.apk"
+                val scriptPath = "/data/local/tmp/install_rytunex.sh"
+
+                val stageSuccess = stageApkToShell(apkFile, stagedApkPath)
+                if (!stageSuccess) {
+                    onLogUpdate?.invoke("[UPDATE WARN]: Direct stream staging failed, attempting fallback copy...")
+                    ShellEngine.exec("cp \"${apkFile.absolutePath}\" \"$stagedApkPath\" 2>/dev/null")
                 }
+                ShellEngine.exec("chmod 644 \"$stagedApkPath\"")
+
+                // Always uninstall old version and install new APK to eliminate certificate/hash conflicts
+                onLogUpdate?.invoke("[UPDATE]: Preparing updater worker script (uninstall previous & install update)...")
+                val scriptContent = """
+                    #!/system/bin/sh
+                    sleep 1
+                    # Backup preferences if present
+                    cp /data/data/com.rayenghanmi.rytunex/shared_prefs/rytunex_preferences.xml /data/local/tmp/rytunex_prefs.xml 2>/dev/null
+
+                    # Clean uninstall to purge mismatched signature/hash record
+                    pm uninstall com.rayenghanmi.rytunex
+
+                    # Clean install downloaded release APK with auto-granted runtime permissions
+                    pm install -g -d /data/local/tmp/rytunex_update.apk
+                    rm -f /data/local/tmp/rytunex_update.apk
+
+                    # Restore preferences to the new app installation
+                    if [ -f /data/local/tmp/rytunex_prefs.xml ]; then
+                        mkdir -p /data/data/com.rayenghanmi.rytunex/shared_prefs 2>/dev/null
+                        cp /data/local/tmp/rytunex_prefs.xml /data/data/com.rayenghanmi.rytunex/shared_prefs/rytunex_preferences.xml 2>/dev/null
+                        NEW_UID=${'$'}(stat -c '%u' /data/data/com.rayenghanmi.rytunex 2>/dev/null)
+                        if [ -n "${'$'}NEW_UID" ]; then
+                            chown -R ${'$'}NEW_UID:${'$'}NEW_UID /data/data/com.rayenghanmi.rytunex/shared_prefs 2>/dev/null
+                            chmod 700 /data/data/com.rayenghanmi.rytunex/shared_prefs 2>/dev/null
+                            chmod 660 /data/data/com.rayenghanmi.rytunex/shared_prefs/rytunex_preferences.xml 2>/dev/null
+                        fi
+                        rm -f /data/local/tmp/rytunex_prefs.xml 2>/dev/null
+                    fi
+
+                    # Relaunch RyTuneX
+                    am start -n com.rayenghanmi.rytunex/.MainActivity || monkey -p com.rayenghanmi.rytunex -c android.intent.category.LAUNCHER 1
+                    rm -f /data/local/tmp/install_rytunex.sh
+                """.trimIndent()
+
+                writeScriptToShell(scriptContent, scriptPath)
+                ShellEngine.exec("chmod 755 \"$scriptPath\"")
+
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        context,
+                        "Reinstalling update to resolve signature mismatch... RyTuneX will restart momentarily.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+
+                // Launch detached in background so it executes after RyTuneX process terminates
+                ShellEngine.exec("(nohup /system/bin/sh \"$scriptPath\" >/data/local/tmp/rytunex_install.log 2>&1 & || /system/bin/sh \"$scriptPath\" >/data/local/tmp/rytunex_install.log 2>&1 &)")
+                onLogUpdate?.invoke("[UPDATE]: Clean reinstall worker launched in background.")
+                return@withContext Result.success(true)
+
+            } catch (e: Exception) {
+                onLogUpdate?.invoke("[UPDATE NOTICE]: Shizuku reinstall attempt error: ${e.message}. Using system installer.")
             }
-        } catch (e: Exception) {
-            onLogUpdate?.invoke("[UPDATE NOTICE]: Shizuku install attempt failed: ${e.message}. Using system installer.")
         }
 
-        // 2. Standard Android Package Installer via FileProvider
+        // 2. Standard Android Package Installer via FileProvider fallback
         try {
+            // Backup APK to public Downloads folder so user does not lose it if they manually uninstall
+            try {
+                val publicDownloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                if (publicDownloads.exists() || publicDownloads.mkdirs()) {
+                    val publicApk = File(publicDownloads, apkFile.name)
+                    apkFile.copyTo(publicApk, overwrite = true)
+                }
+            } catch (_: Exception) {}
+
             val contentUri: Uri = FileProvider.getUriForFile(
                 context,
                 "${context.packageName}.fileprovider",
@@ -404,6 +528,7 @@ object AppUpdateManager {
             Result.failure(e)
         }
     }
+
 
     /**
      * Resets the download state back to Idle.
