@@ -1,10 +1,41 @@
 import java.io.File
+import java.util.Properties
 
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
+
+// Signing credentials: CI env vars -> Gradle -P properties -> untracked keystore.properties
+val signingCredentials = Properties().apply {
+    val f = rootProject.file("keystore.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+val keystorePath = (
+    System.getenv("KEYSTORE_FILE")
+        ?: project.findProperty("KEYSTORE_FILE")?.toString()
+        ?: signingCredentials.getProperty("KEYSTORE_FILE")
+    ).orEmpty()
+val keystorePassword = (
+    System.getenv("KEYSTORE_PASSWORD")
+        ?: project.findProperty("KEYSTORE_PASSWORD")?.toString()
+        ?: signingCredentials.getProperty("KEYSTORE_PASSWORD")
+    ).orEmpty()
+val keyAliasName = (
+    System.getenv("KEY_ALIAS")
+        ?: project.findProperty("KEY_ALIAS")?.toString()
+        ?: signingCredentials.getProperty("KEY_ALIAS")
+    ).orEmpty()
+val keyPasswordVal = (
+    System.getenv("KEY_PASSWORD")
+        ?: project.findProperty("KEY_PASSWORD")?.toString()
+        ?: signingCredentials.getProperty("KEY_PASSWORD")
+    ).orEmpty()
+val canSignWithReleaseKey = keystorePath.isNotBlank() &&
+        keystorePassword.isNotBlank() &&
+        keyAliasName.isNotBlank() &&
+        keyPasswordVal.isNotBlank()
 
 android {
     namespace = "com.rayenghanmi.rytunex"
@@ -14,26 +45,13 @@ android {
         applicationId = "com.rayenghanmi.rytunex"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.0.1"
+        versionCode = 3
+        versionName = "1.0.2"
     }
 
     signingConfigs {
         create("release") {
-            val keystorePath = System.getenv("KEYSTORE_FILE")
-                ?: project.findProperty("KEYSTORE_FILE")?.toString()
-            val keystorePassword = System.getenv("KEYSTORE_PASSWORD")
-                ?: project.findProperty("KEYSTORE_PASSWORD")?.toString()
-            val keyAliasName = System.getenv("KEY_ALIAS")
-                ?: project.findProperty("KEY_ALIAS")?.toString()
-            val keyPasswordVal = System.getenv("KEY_PASSWORD")
-                ?: project.findProperty("KEY_PASSWORD")?.toString()
-
-            if (!keystorePath.isNullOrBlank() &&
-                !keystorePassword.isNullOrBlank() &&
-                !keyAliasName.isNullOrBlank() &&
-                !keyPasswordVal.isNullOrBlank()
-            ) {
+            if (canSignWithReleaseKey) {
                 val keystoreFile = if (File(keystorePath).isAbsolute) {
                     File(keystorePath)
                 } else {
@@ -52,9 +70,17 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = true
+            isShrinkResources = true
             val releaseSigning = signingConfigs.getByName("release")
             signingConfig = if (releaseSigning.storeFile != null) releaseSigning else signingConfigs.getByName("debug")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+        }
+        debug {
+            // Share the release keystore locally; machines without it keep debug signing
+            val releaseSigning = signingConfigs.getByName("release")
+            if (releaseSigning.storeFile != null) {
+                signingConfig = releaseSigning
+            }
         }
     }
 

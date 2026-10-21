@@ -53,6 +53,7 @@ captures/
 # Keystores and private certificates
 *.jks
 *.keystore
+keystore.properties
 
 # OS-specific files
 .DS_Store

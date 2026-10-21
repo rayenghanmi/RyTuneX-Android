@@ -123,7 +123,7 @@ fun DashboardScreen(
                     .padding(top = 8.dp, bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Natural In-Flow Top Header (Visible at rest, scrolls out smoothly)
+                // Header (scrolls away with content)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -169,7 +169,7 @@ fun DashboardScreen(
                         inactiveText = "NO PRIVILEGE"
                     )
                 }
-            // App Update Available Banner
+            // Update banner
             val updateInfo = AppUpdateManager.latestReleaseInfo
             if (updateInfo?.isUpdateAvailable == true && showUpdateBanner) {
                 Card(
@@ -224,7 +224,7 @@ fun DashboardScreen(
                 }
             }
 
-            // Shizuku Privilege Notification Card if disconnected
+            // Shizuku status card
             if (!isShizukuReady) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -274,7 +274,7 @@ fun DashboardScreen(
                 }
             }
 
-            // Device Specifications Card
+            // Device specs
             GoogleGroupedCard {
                 GoogleSettingsRow(
                     title = "${deviceInfo.manufacturer} ${deviceInfo.model}".ifBlank { "Android Device" },
@@ -327,7 +327,7 @@ fun DashboardScreen(
                 }
             }
 
-            // 2x2 Telemetry Grid (Equal Height Synchronized)
+            // Telemetry 2x2 grid
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -395,7 +395,7 @@ fun DashboardScreen(
                 )
             }
 
-            // Adaptive Intelligence Profiles Section
+            // Adaptive profiles
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -508,7 +508,7 @@ fun DashboardScreen(
                 }
             }
 
-            // Quick Maintenance Actions
+            // Quick maintenance actions
             GoogleSectionHeader(title = "QUICK ACTIONS")
 
             GoogleGroupedCard {
@@ -676,7 +676,7 @@ fun DashboardScreen(
             Spacer(modifier = Modifier.navigationBarsPadding().height(130.dp))
         }
 
-        // Modern One UI 9 Floating Top Pill Header (visible only when scrolled)
+        // Floating header pill (visible when scrolled)
         FloatingTopPillHeader(
             visible = isScrolled,
             leadingContent = {
@@ -707,7 +707,7 @@ fun DashboardScreen(
         )
 
 
-        // About Pop-up Dialog
+        // About dialog
         if (showAboutDialog) {
             ExpressiveAlertDialog(
                 onDismissRequest = { showAboutDialog = false },
@@ -794,7 +794,7 @@ fun DashboardScreen(
             )
         }
 
-        // Profile Deployment Confirmation Dialog
+        // Profile confirmation dialog
         pendingProfileToConfirm?.let { profile ->
             ExpressiveAlertDialog(
                 onDismissRequest = { pendingProfileToConfirm = null },
@@ -824,7 +824,7 @@ fun DashboardScreen(
             )
         }
 
-        // App Update Dialog
+        // Update dialog
         if (showUpdateDialog && AppUpdateManager.latestReleaseInfo != null) {
             AppUpdateDialog(
                 releaseInfo = AppUpdateManager.latestReleaseInfo!!,

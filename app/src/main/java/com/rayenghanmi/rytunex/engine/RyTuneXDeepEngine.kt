@@ -5,6 +5,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import rikka.shizuku.Shizuku
 import android.content.pm.PackageManager
@@ -43,110 +45,116 @@ object RyTuneXDeepEngine {
     var hasPrivilegedState by mutableStateOf(false)
         private set
 
-    suspend fun readCurrentSystemState(forceRefresh: Boolean = false): SystemTuningState = withContext(Dispatchers.IO) {
-        val shizukuReady = try {
-            Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
-        } catch (_: Throwable) { false }
+    // One probe at a time so concurrent warm-up calls share a single shell execution
+    private val probeMutex = Mutex()
 
-        if (!forceRefresh && cachedSystemState != null && (!shizukuReady || hasPrivilegedState)) {
-            return@withContext cachedSystemState!!
-        }
+    suspend fun readCurrentSystemState(forceRefresh: Boolean = false): SystemTuningState = probeMutex.withLock {
+        withContext(Dispatchers.IO) {
+            val shizukuReady = try {
+                Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
+            } catch (_: Throwable) { false }
 
-        val probeCmd = "echo \"DNS_MODE:$(settings get global private_dns_mode 2>/dev/null)\"; " +
-                "echo \"DNS_SPEC:$(settings get global private_dns_specifier 2>/dev/null)\"; " +
-                "echo \"ANIM_SCALE:$(settings get global window_animation_scale 2>/dev/null)\"; " +
-                "echo \"POINTER_SPEED:$(settings get system pointer_speed 2>/dev/null)\"; " +
-                "echo \"TAP_THRESH:$(settings get secure tap_duration_threshold 2>/dev/null)\"; " +
-                "echo \"BLURS:$(settings get global disable_window_blurs 2>/dev/null)\"; " +
-                "echo \"REDUCE_TRANS:$(settings get global accessibility_reduce_transparency 2>/dev/null)\"; " +
-                "echo \"GAME_DRIVER:$(settings get global game_driver_all_apps 2>/dev/null)\"; " +
-                "echo \"WIFI_SCAN:$(settings get global wifi_scan_always_enabled 2>/dev/null)\"; " +
-                "echo \"MOBILE_DATA_ALWAYS_ON:$(settings get global mobile_data_always_on 2>/dev/null)\"; " +
-                "echo \"DOZE:$(settings get global device_idle_constants 2>/dev/null)\"; " +
-                "echo \"LOGGING:$(settings get global send_action_app_error 2>/dev/null)\"; " +
-                "echo \"DROPBOX:$(settings get global dropbox_max_files 2>/dev/null)\"; " +
-                "echo \"ACT_LOG:$(settings get global activity_starts_logging_enabled 2>/dev/null)\"; " +
-                "echo \"PEAK_HZ:$(settings get system peak_refresh_rate 2>/dev/null)\"; " +
-                "echo \"MIN_HZ:$(settings get system min_refresh_rate 2>/dev/null)\"; " +
-                "echo \"PHANTOM:$(device_config get activity_manager max_phantom_processes 2>/dev/null)\"; " +
-                "echo \"PHANTOM_MONITOR:$(settings get global settings_enable_monitor_phantom_procs 2>/dev/null)\"; " +
-                "echo \"FORCE_HW:$(settings get global force_hw_ui 2>/dev/null)\"; " +
-                "echo \"PRED_BACK_GLOBAL:$(settings get global enable_predictive_back_animation 2>/dev/null)\"; " +
-                "echo \"PRED_BACK_SECURE:$(settings get secure enable_predictive_back_animation 2>/dev/null)\"; " +
-                "echo \"RENDERER_PROP:$(getprop debug.hwui.renderer 2>/dev/null)\"; " +
-                "echo \"RENDERER_GLOBAL:$(settings get global debug.hwui.renderer 2>/dev/null)\""
-
-        val res = ShellEngine.exec(probeCmd)
-        if (!res.isSuccess && res.stdout.isBlank()) {
-            return@withContext cachedSystemState ?: SystemTuningState()
-        }
-
-        val map = mutableMapOf<String, String>()
-        res.stdout.lines().forEach { line ->
-            val idx = line.indexOf(':')
-            if (idx > 0) {
-                val key = line.substring(0, idx).trim()
-                val value = line.substring(idx + 1).trim()
-                map[key] = value
+            // Re-check under the lock: a queued warm-up reuses the fresh result
+            if (!forceRefresh && cachedSystemState != null && (!shizukuReady || hasPrivilegedState)) {
+                return@withContext cachedSystemState!!
             }
+
+            val probeCmd = "echo \"DNS_MODE:$(settings get global private_dns_mode 2>/dev/null)\"; " +
+                    "echo \"DNS_SPEC:$(settings get global private_dns_specifier 2>/dev/null)\"; " +
+                    "echo \"ANIM_SCALE:$(settings get global window_animation_scale 2>/dev/null)\"; " +
+                    "echo \"POINTER_SPEED:$(settings get system pointer_speed 2>/dev/null)\"; " +
+                    "echo \"TAP_THRESH:$(settings get secure tap_duration_threshold 2>/dev/null)\"; " +
+                    "echo \"BLURS:$(settings get global disable_window_blurs 2>/dev/null)\"; " +
+                    "echo \"REDUCE_TRANS:$(settings get global accessibility_reduce_transparency 2>/dev/null)\"; " +
+                    "echo \"GAME_DRIVER:$(settings get global game_driver_all_apps 2>/dev/null)\"; " +
+                    "echo \"WIFI_SCAN:$(settings get global wifi_scan_always_enabled 2>/dev/null)\"; " +
+                    "echo \"MOBILE_DATA_ALWAYS_ON:$(settings get global mobile_data_always_on 2>/dev/null)\"; " +
+                    "echo \"DOZE:$(settings get global device_idle_constants 2>/dev/null)\"; " +
+                    "echo \"LOGGING:$(settings get global send_action_app_error 2>/dev/null)\"; " +
+                    "echo \"DROPBOX:$(settings get global dropbox_max_files 2>/dev/null)\"; " +
+                    "echo \"ACT_LOG:$(settings get global activity_starts_logging_enabled 2>/dev/null)\"; " +
+                    "echo \"PEAK_HZ:$(settings get system peak_refresh_rate 2>/dev/null)\"; " +
+                    "echo \"MIN_HZ:$(settings get system min_refresh_rate 2>/dev/null)\"; " +
+                    "echo \"PHANTOM:$(device_config get activity_manager max_phantom_processes 2>/dev/null)\"; " +
+                    "echo \"PHANTOM_MONITOR:$(settings get global settings_enable_monitor_phantom_procs 2>/dev/null)\"; " +
+                    "echo \"FORCE_HW:$(settings get global force_hw_ui 2>/dev/null)\"; " +
+                    "echo \"PRED_BACK_GLOBAL:$(settings get global enable_predictive_back_animation 2>/dev/null)\"; " +
+                    "echo \"PRED_BACK_SECURE:$(settings get secure enable_predictive_back_animation 2>/dev/null)\"; " +
+                    "echo \"RENDERER_PROP:$(getprop debug.hwui.renderer 2>/dev/null)\"; " +
+                    "echo \"RENDERER_GLOBAL:$(settings get global debug.hwui.renderer 2>/dev/null)\""
+
+            val res = ShellEngine.exec(probeCmd)
+            if (!res.isSuccess && res.stdout.isBlank()) {
+                return@withContext cachedSystemState ?: SystemTuningState()
+            }
+
+            val map = mutableMapOf<String, String>()
+            res.stdout.lines().forEach { line ->
+                val idx = line.indexOf(':')
+                if (idx > 0) {
+                    val key = line.substring(0, idx).trim()
+                    val value = line.substring(idx + 1).trim()
+                    map[key] = value
+                }
+            }
+
+            val dnsMode = map["DNS_MODE"].orEmpty()
+            val dnsSpec = map["DNS_SPEC"].orEmpty().trim().lowercase()
+            val dnsProvider = when {
+                dnsMode == "hostname" && dnsSpec.contains("cloudflare") -> DnsProvider.CLOUDFLARE
+                dnsMode == "hostname" && dnsSpec.contains("adguard") -> DnsProvider.ADGUARD
+                dnsMode == "hostname" && dnsSpec.contains("quad9") -> DnsProvider.QUAD9
+                dnsMode == "hostname" && dnsSpec.contains("google") -> DnsProvider.GOOGLE
+                dnsMode == "hostname" && dnsSpec.isNotBlank() && dnsSpec != "null" -> DnsProvider.CLOUDFLARE
+                else -> DnsProvider.STOCK_OFF
+            }
+
+            val customHost = if (dnsMode == "hostname" && dnsSpec.isNotBlank() && dnsSpec != "null") map["DNS_SPEC"] else null
+            val animScale = map["ANIM_SCALE"]?.toFloatOrNull() ?: 1.0f
+            val pointerSpeed = map["POINTER_SPEED"]?.toIntOrNull() ?: 0
+            val tapThresh = map["TAP_THRESH"]?.toIntOrNull()
+            val touchBoost = pointerSpeed >= 7 || tapThresh == 0
+            val blursDisabled = map["BLURS"] == "1" || map["REDUCE_TRANS"] == "1"
+            val gameDriver = map["GAME_DRIVER"] == "1"
+            val radioSaver = map["WIFI_SCAN"] == "0" || map["MOBILE_DATA_ALWAYS_ON"] == "0"
+            val aggressiveDoze = map["DOZE"]?.contains("inactive_to=30000") == true || map["DOZE"]?.contains("inactive_to=0") == true
+            val loggingSuppressed = SettingsManager.isTelemetrySuppressed ||
+                    map["LOGGING"] == "0" ||
+                    map["DROPBOX"] == "0" ||
+                    map["ACT_LOG"] == "0"
+            val peakHz = map["PEAK_HZ"]?.toFloatOrNull()
+            val minHz = map["MIN_HZ"]?.toFloatOrNull()
+            val phantomStr = map["PHANTOM"].orEmpty()
+            val phantomBypassed = phantomStr.contains("2147483647") ||
+                    phantomStr.contains("214748364") ||
+                    map["PHANTOM_MONITOR"] == "false" ||
+                    map["PHANTOM_MONITOR"] == "0"
+            val forceHw = map["FORCE_HW"] == "1"
+            val predBack = map["PRED_BACK_GLOBAL"] == "1" || map["PRED_BACK_SECURE"] == "1"
+            val renderer = (map["RENDERER_PROP"].orEmpty() + " " + map["RENDERER_GLOBAL"].orEmpty()).lowercase()
+            val isVulkan = renderer.contains("vulkan") || renderer.contains("skiavk")
+
+            val state = SystemTuningState(
+                dnsProvider = dnsProvider,
+                customDnsHost = customHost,
+                animationScale = animScale,
+                isTouchBoostEnabled = touchBoost,
+                isBlursDisabled = blursDisabled,
+                isGameDriverForced = gameDriver,
+                isRadioSaverEnabled = radioSaver,
+                isAggressiveDozeEnabled = aggressiveDoze,
+                isLoggingSuppressed = loggingSuppressed,
+                peakRefreshRate = peakHz,
+                minRefreshRate = minHz,
+                isPhantomBypassed = phantomBypassed,
+                isForceHwUiEnabled = forceHw,
+                isPredictiveBackEnabled = predBack,
+                isVulkanRendererEnabled = isVulkan
+            )
+            hasPrivilegedState = shizukuReady || res.isSuccess
+            cachedSystemState = state
+            return@withContext state
         }
-
-        val dnsMode = map["DNS_MODE"].orEmpty()
-        val dnsSpec = map["DNS_SPEC"].orEmpty().trim().lowercase()
-        val dnsProvider = when {
-            dnsMode == "hostname" && dnsSpec.contains("cloudflare") -> DnsProvider.CLOUDFLARE
-            dnsMode == "hostname" && dnsSpec.contains("adguard") -> DnsProvider.ADGUARD
-            dnsMode == "hostname" && dnsSpec.contains("quad9") -> DnsProvider.QUAD9
-            dnsMode == "hostname" && dnsSpec.contains("google") -> DnsProvider.GOOGLE
-            dnsMode == "hostname" && dnsSpec.isNotBlank() && dnsSpec != "null" -> DnsProvider.CLOUDFLARE
-            else -> DnsProvider.STOCK_OFF
-        }
-
-        val customHost = if (dnsMode == "hostname" && dnsSpec.isNotBlank() && dnsSpec != "null") map["DNS_SPEC"] else null
-        val animScale = map["ANIM_SCALE"]?.toFloatOrNull() ?: 1.0f
-        val pointerSpeed = map["POINTER_SPEED"]?.toIntOrNull() ?: 0
-        val tapThresh = map["TAP_THRESH"]?.toIntOrNull()
-        val touchBoost = pointerSpeed >= 7 || tapThresh == 0
-        val blursDisabled = map["BLURS"] == "1" || map["REDUCE_TRANS"] == "1"
-        val gameDriver = map["GAME_DRIVER"] == "1"
-        val radioSaver = map["WIFI_SCAN"] == "0" || map["MOBILE_DATA_ALWAYS_ON"] == "0"
-        val aggressiveDoze = map["DOZE"]?.contains("inactive_to=30000") == true || map["DOZE"]?.contains("inactive_to=0") == true
-        val loggingSuppressed = SettingsManager.isTelemetrySuppressed ||
-                map["LOGGING"] == "0" ||
-                map["DROPBOX"] == "0" ||
-                map["ACT_LOG"] == "0"
-        val peakHz = map["PEAK_HZ"]?.toFloatOrNull()
-        val minHz = map["MIN_HZ"]?.toFloatOrNull()
-        val phantomStr = map["PHANTOM"].orEmpty()
-        val phantomBypassed = phantomStr.contains("2147483647") ||
-                phantomStr.contains("214748364") ||
-                map["PHANTOM_MONITOR"] == "false" ||
-                map["PHANTOM_MONITOR"] == "0"
-        val forceHw = map["FORCE_HW"] == "1"
-        val predBack = map["PRED_BACK_GLOBAL"] == "1" || map["PRED_BACK_SECURE"] == "1"
-        val renderer = (map["RENDERER_PROP"].orEmpty() + " " + map["RENDERER_GLOBAL"].orEmpty()).lowercase()
-        val isVulkan = renderer.contains("vulkan") || renderer.contains("skiavk")
-
-        val state = SystemTuningState(
-            dnsProvider = dnsProvider,
-            customDnsHost = customHost,
-            animationScale = animScale,
-            isTouchBoostEnabled = touchBoost,
-            isBlursDisabled = blursDisabled,
-            isGameDriverForced = gameDriver,
-            isRadioSaverEnabled = radioSaver,
-            isAggressiveDozeEnabled = aggressiveDoze,
-            isLoggingSuppressed = loggingSuppressed,
-            peakRefreshRate = peakHz,
-            minRefreshRate = minHz,
-            isPhantomBypassed = phantomBypassed,
-            isForceHwUiEnabled = forceHw,
-            isPredictiveBackEnabled = predBack,
-            isVulkanRendererEnabled = isVulkan
-        )
-        hasPrivilegedState = shizukuReady || res.isSuccess
-        cachedSystemState = state
-        return@withContext state
     }
 
     suspend fun deepStorageAndCacheClean(): CommandResult = withContext(Dispatchers.IO) {

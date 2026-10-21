@@ -115,7 +115,7 @@ fun TerminalScreen(
                     .padding(top = 8.dp, bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Natural In-Flow Top Header (Visible at rest)
+                // Header
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -162,7 +162,7 @@ fun TerminalScreen(
                     }
                 }
 
-            // Preset Diagnostic Queries Header & Single-line Horizontal Scrollable Row
+            // Preset queries row
             GoogleSectionHeader(title = "PRESET DIAGNOSTIC QUERIES")
 
             Row(
@@ -191,7 +191,7 @@ fun TerminalScreen(
                 }
             }
 
-            // Terminal Console Window Card
+            // Console card
             Card(
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(
@@ -219,7 +219,7 @@ fun TerminalScreen(
                 }
             }
 
-            // Command Input Bar (Pill Shape)
+            // Command input
             Surface(
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,

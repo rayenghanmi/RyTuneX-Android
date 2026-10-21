@@ -52,9 +52,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/**
- * Extracts valid Android package names from arbitrary text (plain text, JSON, shell scripts, etc.).
- */
+// Extracts valid Android package names from arbitrary text (plain text, JSON, scripts, etc.)
 fun extractPackageNames(text: String): List<String> {
     val regex = Regex("""[a-zA-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z0-9_]+)+""")
     return regex.findAll(text)
@@ -321,21 +319,21 @@ fun DebloatScreen(
         }
     }
 
-    // Trigger refresh whenever Shizuku becomes granted/connected
+    // Rescan when Shizuku grant/connect state changes
     LaunchedEffect(isShizukuReady) {
         if (isShizukuReady) {
             refreshApps(force = true)
         }
     }
 
-    // Refresh when screen becomes visible if we haven't done a privileged scan yet
+    // Rescan on first visibility if the previous scan was unprivileged
     LaunchedEffect(isScreenVisible) {
         if (isScreenVisible && (UadDatabaseManager.cachedApps == null || !UadDatabaseManager.hasPrivilegedScan)) {
             refreshApps(force = false)
         }
     }
 
-    // Preload apps immediately during startup animation
+    // Preload icons eagerly so scrolling feels instant
     LaunchedEffect(Unit) {
         if ((UadDatabaseManager.cachedApps == null || UadDatabaseManager.cachedApps?.isEmpty() == true) && !UadDatabaseManager.isScanning) {
             refreshApps(force = false)
@@ -422,7 +420,7 @@ fun DebloatScreen(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
                 contentPadding = PaddingValues(bottom = if (selectedPackageNames.isNotEmpty()) 200.dp else 145.dp)
             ) {
-                // Natural In-Flow Top Header (Visible at rest, scrolls out smoothly)
+                // Header (scrolls away with content)
                 item(key = "header") {
                     Row(
                         modifier = Modifier
@@ -498,7 +496,7 @@ fun DebloatScreen(
                 }
             }
 
-            // Google Material 3 Expressive Pill Search Bar
+            // Search bar
             item(key = "search") {
                 Surface(
                     shape = CircleShape,
@@ -547,7 +545,7 @@ fun DebloatScreen(
                 }
             }
 
-            // Material 3 Filter Chips Row
+            // Filter chips
             item(key = "filters") {
                 Row(
                     modifier = Modifier
@@ -607,7 +605,7 @@ fun DebloatScreen(
                 }
             }
 
-            // Debloated Preset Quick Card (shown when in Debloated tab with debloated packages)
+            // Preset summary card (Debloated tab only)
             if (activeFilter == "frozen" && frozenCount > 0) {
                 item(key = "debloated_preset_banner") {
                     Surface(
@@ -668,7 +666,7 @@ fun DebloatScreen(
                 }
             }
 
-            // Package List
+            // Package list
             if (isScanning && apps.isEmpty()) {
                 item(key = "loading_indicator") {
                     Box(
@@ -766,7 +764,7 @@ fun DebloatScreen(
         }
 
 
-            // Google-style Floating Bottom Batch Actions Pill Bar
+            // Floating batch action bar
             AnimatedVisibility(
                 visible = selectedPackageNames.isNotEmpty(),
                 enter = slideInVertically(initialOffsetY = { it }),
@@ -903,7 +901,7 @@ fun DebloatScreen(
                 }
             }
 
-        // Modern One UI 9 Floating Top Pill Header (visible only when scrolled)
+        // Floating header pill (visible when scrolled)
         FloatingTopPillHeader(
             visible = isScrolled,
             title = "Debloat",
@@ -971,7 +969,7 @@ fun DebloatScreen(
         )
     }
 
-    // Google Material 3 Inspection Dialog
+    // Inspection dialog
     inspectingApp?.let { app ->
         ExpressiveAlertDialog(
             onDismissRequest = { inspectingApp = null },
@@ -1185,7 +1183,7 @@ fun DebloatScreen(
         )
     }
 
-    // Single App Uninstall Confirmation Dialog
+    // Single app uninstall confirmation dialog
     pendingUninstallApp?.let { app ->
         ExpressiveAlertDialog(
             onDismissRequest = { pendingUninstallApp = null },
@@ -1231,7 +1229,7 @@ fun DebloatScreen(
         )
     }
 
-    // Batch Action Confirmation Dialog (governed by SettingsManager.confirmTweaks)
+    // Batch action confirmation dialog
     pendingBatchConfirmAction?.let { action ->
         ExpressiveAlertDialog(
             onDismissRequest = { pendingBatchConfirmAction = null },
@@ -1257,7 +1255,7 @@ fun DebloatScreen(
         )
     }
 
-    // Export / Share Debloated Preset Dialog
+    // Export / share preset dialog
     if (showExportDialog) {
         val debloatedPackages = remember(apps) {
             apps.filter { !it.isEnabled || !it.isInstalled }.map { it.packageName }.sorted()
@@ -1350,7 +1348,7 @@ fun DebloatScreen(
                             }
                         }
 
-                        // Action Buttons: Copy Text & Save File
+                        // Copy and save actions
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -1406,7 +1404,7 @@ fun DebloatScreen(
         )
     }
 
-    // Import & Auto-Select Debloated Preset Dialog
+    // Import preset dialog
     if (showImportDialog) {
         val detectedPackages = remember(importInputText) {
             extractPackageNames(importInputText)

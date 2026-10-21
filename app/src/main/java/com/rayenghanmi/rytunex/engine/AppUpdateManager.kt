@@ -42,13 +42,7 @@ sealed class DownloadState {
     data class Error(val message: String) : DownloadState()
 }
 
-/**
- * Universal GitHub App Update Engine for RyTuneX.
- * Supports configurable repository sources (allowing instant migration to new clean or public repos),
- * pre-release and stable channel switching, intelligent semantic version comparison,
- * live progress downloads with GitHub S3 CDN redirect support,
- * and privileged installation via Shizuku or standard Android FileProvider package installer.
- */
+// GitHub update engine: release check, SemVer compare, download and Shizuku/FileProvider install.
 object AppUpdateManager {
 
     var isChecking by mutableStateOf(false)
@@ -63,9 +57,7 @@ object AppUpdateManager {
     var lastCheckError by mutableStateOf<String?>(null)
         private set
 
-    /**
-     * Gets the installed version name from PackageManager.
-     */
+    // Installed version name from PackageManager
     fun getCurrentVersion(context: Context): String {
         return try {
             val pInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -80,9 +72,7 @@ object AppUpdateManager {
         }
     }
 
-    /**
-     * Compares semantic versions following SemVer 2.0 rules (e.g. "1.0.1" > "1.0.0", "1.0.1" > "1.0.1-rc1").
-     */
+    // SemVer 2.0 comparison ("1.0.1" > "1.0.0", "1.0.1" > "1.0.1-rc1")
     fun isNewerVersion(remote: String, current: String): Boolean {
         val cleanRemote = remote.trim().removePrefix("v").removePrefix("V")
         val cleanCurrent = current.trim().removePrefix("v").removePrefix("V")
@@ -103,8 +93,7 @@ object AppUpdateManager {
             if (r < c) return false
         }
 
-        // If main version numbers are equal, check pre-release tags:
-        // A release with a pre-release tag has lower precedence than a normal release (SemVer 2.0).
+        // With equal version numbers a pre-release tag loses to a stable release (SemVer 2.0)
         val remoteHasPre = cleanRemote.contains("-")
         val currentHasPre = cleanCurrent.contains("-")
 
@@ -126,10 +115,7 @@ object AppUpdateManager {
         return false
     }
 
-    /**
-     * Checks the GitHub repository (rayenghanmi/RyTuneX-Android) for releases.
-     * When includePreReleases is true, searches recent releases including pre-releases; otherwise targets latest stable.
-     */
+    // Checks GitHub for releases; with pre-releases enabled it scans recent releases
     suspend fun checkLatestUpdate(
         context: Context,
         repo: String = SettingsManager.GITHUB_REPO,
@@ -266,9 +252,7 @@ object AppUpdateManager {
         }
     }
 
-    /**
-     * Downloads the APK file to the app's cache directory, following GitHub S3 CDN redirects.
-     */
+    // Downloads the APK to the app cache, following GitHub CDN redirects
     suspend fun downloadApk(
         context: Context,
         releaseInfo: AppReleaseInfo,
@@ -348,9 +332,7 @@ object AppUpdateManager {
         }
     }
 
-    /**
-     * Copies the downloaded APK into Shizuku shell's environment via process stdin.
-     */
+    // Feeds the APK into the Shizuku shell via process stdin
     private fun stageApkToShell(apkFile: File, dstPath: String): Boolean {
         var process: Process? = null
         return try {
@@ -382,9 +364,7 @@ object AppUpdateManager {
         }
     }
 
-    /**
-     * Writes arbitrary script content to the shell environment.
-     */
+    // Writes script content to the shell environment
     private fun writeScriptToShell(content: String, dstPath: String): Boolean {
         var process: Process? = null
         return try {
@@ -414,11 +394,7 @@ object AppUpdateManager {
         }
     }
 
-    /**
-     * Installs the downloaded APK by uninstalling the older build first (purging any certificate/hash
-     * mismatch) and installing the new APK, preserving preferences across the installation,
-     * then relaunching RyTuneX.
-     */
+    // Uninstall-then-install update preserving preferences, then relaunches the app
     suspend fun installApk(
         context: Context,
         apkFile: File,
@@ -530,9 +506,7 @@ object AppUpdateManager {
     }
 
 
-    /**
-     * Resets the download state back to Idle.
-     */
+    // Resets the download state back to Idle
     fun resetDownloadState() {
         downloadState = DownloadState.Idle
     }

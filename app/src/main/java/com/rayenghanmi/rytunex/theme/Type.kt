@@ -8,10 +8,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.rayenghanmi.rytunex.R
 
-/**
- * Google Sans (Product Sans) - the iconic typeface used across Google Play Store,
- * Pixel devices, and Google products.
- */
+// Google Sans typeface (Play Store / Pixel system UI)
 val GoogleSansFontFamily = FontFamily(
     Font(resId = R.font.google_sans_regular, weight = FontWeight.Normal),
     Font(resId = R.font.google_sans_regular, weight = FontWeight.Light),
@@ -137,5 +134,5 @@ val AppTypography = Typography(
     ),
 )
 
-// Alias for backward-compatibility across existing screens
+// Backward-compatible alias
 val RyTuneXTypography = AppTypography

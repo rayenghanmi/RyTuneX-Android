@@ -199,7 +199,7 @@ fun OptimizationsScreen(
                     .padding(top = 8.dp, bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Natural In-Flow Top Header (Visible at rest, scrolls out smoothly)
+                // Header (scrolls away with content)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -239,7 +239,7 @@ fun OptimizationsScreen(
             }
 
 
-            // Display & Refresh Rate Section
+            // Display & refresh rate
             GoogleSectionHeader(title = "DISPLAY & ANIMATIONS")
 
             GoogleGroupedCard {
@@ -498,7 +498,7 @@ fun OptimizationsScreen(
                 )
             }
 
-            // Touchscreen & GPU Acceleration Section
+            // Touch & GPU acceleration
             GoogleSectionHeader(title = "INPUT LATENCY & GPU ACCELERATION")
 
             GoogleGroupedCard {
@@ -658,7 +658,7 @@ fun OptimizationsScreen(
                 )
             }
 
-            // Network & Private DNS Section
+            // Network & Private DNS
             GoogleSectionHeader(title = "NETWORK & LATENCY CONTROL")
 
             GoogleGroupedCard {
@@ -750,7 +750,7 @@ fun OptimizationsScreen(
                 )
             }
 
-            // System & Power Management Section
+            // System & power management
             GoogleSectionHeader(title = "SYSTEM & POWER MANAGEMENT")
 
             GoogleGroupedCard {
@@ -898,7 +898,7 @@ fun OptimizationsScreen(
                 )
             }
 
-            // Storage & Memory Optimization Section
+            // Storage & memory
             GoogleSectionHeader(title = "STORAGE & MEMORY OPTIMIZATION")
 
             GoogleGroupedCard {
@@ -1002,7 +1002,7 @@ fun OptimizationsScreen(
                 )
             }
 
-            // ART Runtime Compilation Section
+            // ART runtime compilation
             GoogleSectionHeader(title = "ART RUNTIME COMPILATION")
 
             GoogleGroupedCard {
@@ -1087,7 +1087,7 @@ fun OptimizationsScreen(
             Spacer(modifier = Modifier.navigationBarsPadding().height(130.dp))
         }
 
-        // Modern One UI 9 Floating Top Pill Header (visible only when scrolled)
+        // Floating header pill (visible when scrolled)
         FloatingTopPillHeader(
             visible = isScrolled,
             title = "Optimize",
@@ -1113,7 +1113,7 @@ fun OptimizationsScreen(
             }
         )
 
-        // Tweak Confirmation Dialog (governed by SettingsManager.confirmTweaks)
+        // Tweak confirmation dialog
         pendingConfirmAction?.let { action ->
             ExpressiveAlertDialog(
                 onDismissRequest = { pendingConfirmAction = null },

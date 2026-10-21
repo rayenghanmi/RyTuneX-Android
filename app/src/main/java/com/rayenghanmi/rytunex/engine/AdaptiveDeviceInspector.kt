@@ -20,7 +20,7 @@ object AdaptiveDeviceInspector {
     private var prevIdleCpuTime = 0L
     private var lastCpuUsage = 0f
 
-    // Cached static specs to avoid continuous re-allocation and memory churn
+    // Static specs cached across telemetry ticks
     private var cachedSocInfo: SocInfo? = null
     private var cachedDisplayInfo: DisplayInfo? = null
     private var cachedShizukuInfo: ShizukuInfo = ShizukuInfo()
@@ -30,7 +30,7 @@ object AdaptiveDeviceInspector {
         val baseSoc = cachedSocInfo ?: inspectStaticSoc().also { cachedSocInfo = it }
         var baseDisplay = getDisplayInfo(context)
 
-        // If Shizuku is ready, enrich with hardware composer panel modes (query once and cache)
+        // If Shizuku is ready, merge hardware panel modes (queried once and cached)
         if (isShizukuReady) {
             try {
                 val hwModes = cachedHwDisplayModes ?: queryHardwareDisplayModes().also {
@@ -49,7 +49,7 @@ object AdaptiveDeviceInspector {
             } catch (_: Exception) {}
         }
 
-        // Only query shell privileges if cached state is uninitialized or status changed
+        // Only query privileges when the cache is uninitialized
         if (cachedShizukuInfo.uid < 0 && isShizukuReady) {
             val (uid, selinux) = ShellEngine.checkPrivileges()
             cachedShizukuInfo = ShizukuInfo(
@@ -177,7 +177,7 @@ object AdaptiveDeviceInspector {
             rates.add(roundedCurrent)
         }
 
-        // 5. Universal Hardware Rule: Any Android high-refresh panel (>= 90Hz, 120Hz, etc.) ALWAYS supports 60Hz
+        // 5. High-refresh panels always support 60Hz
         if (rates.any { it >= 60f } || roundedCurrent >= 60f) {
             rates.add(60f)
         }
@@ -224,8 +224,7 @@ object AdaptiveDeviceInspector {
     }
 
     private fun parseRefreshRatesFromDump(output: String, destination: MutableSet<Float>) {
-        // Match explicit display mode declarations:
-        // "Mode 0: 1080x2400, 60.00fps" or "DisplayMode{id=1, width=1080, height=2400, fps=90.0}"
+        // Matches e.g. "Mode 0: 1080x2400, 60.00fps" or "DisplayMode{id=1, ..., fps=90.0}"
         val modeRegex = Regex("""(?:Mode\s+\d+:|DisplayMode\{)[^,\n]+,\s*(\d+(?:\.\d+)?)\s*fps""", RegexOption.IGNORE_CASE)
         for (match in modeRegex.findAll(output)) {
             val num = match.groupValues[1].toFloatOrNull() ?: continue
@@ -309,7 +308,7 @@ object AdaptiveDeviceInspector {
             }
         }
 
-        // 4. Hardware sysfs frequency scaling across all CPU cores (zero permissions required on Android)
+        // 4. Sysfs frequency scaling across all CPU cores
         val sysfsLoad = calculateSysfsCpuLoad()
         if (sysfsLoad >= 0f) {
             lastCpuUsage = sysfsLoad
@@ -323,7 +322,7 @@ object AdaptiveDeviceInspector {
             return lastCpuUsage
         }
 
-        // If completely idle or initial tick, provide realistic low baseline rather than stuck 0%
+        // If completely idle or at the first tick, return a low baseline instead of 0%
         return if (lastCpuUsage > 0f) lastCpuUsage else 2.5f
     }
 

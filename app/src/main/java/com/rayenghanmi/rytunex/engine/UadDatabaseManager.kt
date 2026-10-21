@@ -91,7 +91,7 @@ object UadDatabaseManager {
                     }
                 }
             } catch (_: Exception) {
-                // Network unavailable or timed out: fall back smoothly to cached or bundled database
+                // Network unavailable: fall back to cached or bundled database
             }
         } else if (isLoaded && uadDatabase.isNotEmpty()) {
             return@withContext uadDatabase.size
@@ -310,8 +310,7 @@ object UadDatabaseManager {
                         ((it.flags and ApplicationInfo.FLAG_SYSTEM) != 0) || ((it.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0)
                     } ?: (uadEntry != null && !uadEntry.list.equals("User", ignoreCase = true))
 
-                    // Only include debloated OEM/system apps or packages listed in the UAD database.
-                    // This strictly excludes uninstalled 3rd-party user apps from cluttering debloat.
+                    // Keep only system/OEM debloat targets; exclude uninstalled 3rd-party user apps
                     if (isSystem || uadEntry != null) {
                         val effectiveUadEntry = if (!isSystem || uadEntry?.list?.equals("User", ignoreCase = true) == true) {
                             uadEntry?.copy(removal = UadRecommendation.CUSTOM, list = "User")

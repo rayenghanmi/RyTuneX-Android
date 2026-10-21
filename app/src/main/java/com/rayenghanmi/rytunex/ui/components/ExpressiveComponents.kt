@@ -45,10 +45,7 @@ import com.rayenghanmi.rytunex.theme.AppThemeMode
 import com.rayenghanmi.rytunex.theme.RyTuneXLogoColor
 import com.rayenghanmi.rytunex.theme.accentSeed
 
-/**
- * Material 3 Expressive Card Hierarchy Position.
- * Supports grouped list items with dynamic corner squircle morphing.
- */
+// Card hierarchy position for grouped list items with morphing corners.
 enum class SettingsCardPosition {
     Single,
     GroupedSingle,
@@ -57,10 +54,7 @@ enum class SettingsCardPosition {
     Bottom,
 }
 
-/**
- * Spring-animated responsive squircle shape matching Root-My-Galaxy.
- * Corners smoothly adapt to touch pressure and grouped card position.
- */
+// Spring-animated squircle that follows the grouped card position.
 @Composable
 fun expressiveClickableCardShape(
     interactionSource: MutableInteractionSource,
@@ -101,10 +95,7 @@ fun expressiveClickableCardShape(
     )
 }
 
-/**
- * Native Material 3 Expressive Clickable Settings Card.
- * Uses surfaceContainerHighest with spring feedback.
- */
+// Clickable settings card with spring press feedback.
 @Composable
 fun MaterialSettingsCard(
     title: String,
@@ -206,10 +197,7 @@ fun MaterialSettingsCard(
     }
 }
 
-/**
- * Native Material 3 Expressive Switch Card.
- * Uses surfaceContainerHighest with spring feedback and toggle interaction.
- */
+// Toggle switch card with spring press feedback.
 @Composable
 fun MaterialSettingsSwitchCard(
     title: String,
@@ -294,10 +282,7 @@ fun MaterialSettingsSwitchCard(
     }
 }
 
-/**
- * Native Material 3 Expressive Connected Segmented Theme Mode Selector.
- * Sticky buttons connected to each other with zero gaps and a fluid sliding spring indicator.
- */
+// Segmented selector with sticky buttons and a sliding spring indicator.
 @Composable
 fun ThemeModeSelector(
     themeMode: AppThemeMode,
@@ -316,7 +301,7 @@ fun ThemeModeSelector(
     val movingRight = direction > 0
     val movingLeft = direction < 0
 
-    // Fluid spring physics: leading edge moves faster than trailing edge to simulate liquid stretching
+    // Leading edge moves faster than the trailing edge so the pill stretches
     val indicatorStart by animateFloatAsState(
         targetValue = targetIndex.toFloat(),
         animationSpec = spring(
@@ -359,11 +344,11 @@ fun ThemeModeSelector(
         val pillLeft = trackPadding + (slotWidth * actualStart)
         val pillWidth = slotWidth * (actualEnd - actualStart)
 
-        // Fluid volume conservation: slightly squish height when stretched horizontally
+        // Squish height when stretched to preserve volume
         val stretchExtra = (actualEnd - actualStart - 1f).coerceAtLeast(0f)
         val pillHeight = (40.dp - (4.dp * stretchExtra)).coerceIn(35.dp, 40.dp)
 
-        // Subtle hairline dividers between unselected sticky buttons (fades out when fluid pill crosses)
+        // Hairline dividers between unselected buttons fade under the pill
         val divider1Alpha = if (actualStart <= 1.05f && actualEnd >= 0.95f) {
             0f
         } else {
@@ -404,7 +389,7 @@ fun ThemeModeSelector(
             )
         }
 
-        // Fluid Liquid Indicator Pill
+        // Sliding indicator pill
         Box(
             modifier = Modifier
                 .offset(x = pillLeft)
@@ -422,7 +407,7 @@ fun ThemeModeSelector(
                 )
         )
 
-        // Connected Sticky Buttons (zero gaps between items)
+        // Sticky buttons (no gaps)
         Row(
             modifier = Modifier
                 .fillMaxSize()
@@ -499,9 +484,7 @@ fun ThemeModeSelector(
     }
 }
 
-/**
- * Native Material 3 Expressive Accent Color Swatch Carousel Selector.
- */
+// Accent color swatch carousel.
 @Composable
 fun AccentColorSelector(
     selectedColor: AccentColor,
@@ -566,10 +549,7 @@ fun AccentColorSelector(
     }
 }
 
-/**
- * Authentic Google Material 3 Grouped Container Card.
- * Matches Google Settings & Pixel system app surface cards.
- */
+// Grouped container card matching Pixel Settings surfaces.
 @Composable
 fun GoogleGroupedCard(
     modifier: Modifier = Modifier,
@@ -591,9 +571,7 @@ fun GoogleGroupedCard(
     }
 }
 
-/**
- * Backward-compatible ExpressiveCard using native Material 3 surface containers.
- */
+// Backward-compatible ExpressiveCard alias.
 @Composable
 fun ExpressiveCard(
     modifier: Modifier = Modifier,
@@ -615,9 +593,7 @@ fun ExpressiveCard(
     }
 }
 
-/**
- * Section Header following Google Material 3 typography standards.
- */
+// Section header.
 @Composable
 fun GoogleSectionHeader(
     title: String,
@@ -634,10 +610,7 @@ fun GoogleSectionHeader(
     )
 }
 
-/**
- * Google Pixel Settings Item Row.
- * Includes leading icon surface, title, subtitle, and trailing action.
- */
+// Settings item row with leading icon surface, title, subtitle and trailing content.
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun GoogleSettingsRow(
@@ -740,9 +713,7 @@ fun GoogleSettingsRow(
     }
 }
 
-/**
- * Native Material 3 Expressive Metric Tile for Telemetry.
- */
+// Telemetry metric tile.
 @Composable
 fun HardwareMetricTile(
     title: String,
@@ -829,9 +800,7 @@ fun HardwareMetricTile(
     }
 }
 
-/**
- * Google-style Pulsing Status Pill Badge.
- */
+// Pulsing status pill badge.
 @Composable
 fun PulsingStatusBadge(
     isActive: Boolean,
@@ -893,11 +862,7 @@ fun PulsingStatusBadge(
     }
 }
 
-/**
- * Modern One UI 9 / Android Expressive Floating Pill Header.
- * Replaces sticky top app bars: hidden at the top of the page, smoothly slides and floats
- * in as a pill when the page is scrolled.
- */
+// Floating pill header that slides in once the page is scrolled.
 @Composable
 fun FloatingTopPillHeader(
     visible: Boolean,
@@ -973,10 +938,7 @@ fun FloatingTopPillHeader(
     }
 }
 
-/**
- * Formats any string containing "RyTuneX" so that the "X" is always rendered
- * in the signature pink color of the RyTuneX logo (#FE6093).
- */
+// Renders the trailing "X" of "RyTuneX" in the logo pink (#FE6093).
 @Composable
 fun buildRyTuneXAnnotatedString(
     text: String,
@@ -1002,9 +964,7 @@ fun buildRyTuneXAnnotatedString(
     }
 }
 
-/**
- * RyTuneX Brand Title with 'RyTune' in default surface text color and 'X' in the signature logo pink color (#FE6093).
- */
+// Brand title with "RyTune" in surface color and "X" in logo pink.
 @Composable
 fun RyTuneXBrandText(
     modifier: Modifier = Modifier,
@@ -1029,10 +989,7 @@ fun RyTuneXBrandText(
     )
 }
 
-/**
- * Standard Material 3 Expressive Alert Dialog with consistent edge margins and responsive constraints.
- * Ensures dialogs leave comfortable margins (24.dp) from the screen edges instead of touching the borders.
- */
+// Alert dialog with comfortable edge margins instead of touching the borders.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExpressiveAlertDialog(

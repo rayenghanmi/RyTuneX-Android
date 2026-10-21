@@ -62,7 +62,7 @@ fun SettingsScreen(
                 .padding(top = 8.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Natural In-Flow Top Header
+            // Header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -91,7 +91,7 @@ fun SettingsScreen(
                 )
             }
 
-            // 1. Appearance & Theming (Matching Root-My-Galaxy native Material Design)
+            // Appearance & theming
             GoogleSectionHeader(title = "Appearance & Theming")
             ThemeModeSelector(
                 themeMode = SettingsManager.themeMode.toAppThemeMode(),
@@ -115,7 +115,7 @@ fun SettingsScreen(
                 }
             )
 
-            // 2. Hardware Telemetry & Monitoring
+            // Telemetry & monitoring
             GoogleSectionHeader(title = "Hardware Telemetry")
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 MaterialSettingsSwitchCard(
@@ -188,7 +188,7 @@ fun SettingsScreen(
                 )
             }
 
-            // 3. Debloat & Package Management
+            // Debloat & package management
             GoogleSectionHeader(title = "Debloat & Package Management")
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 MaterialSettingsCard(
@@ -251,7 +251,7 @@ fun SettingsScreen(
                 )
             }
 
-            // 4. Tweaks & Safety
+            // Tweaks & safety
             GoogleSectionHeader(title = "Optimize & Safety")
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 MaterialSettingsSwitchCard(
@@ -283,7 +283,7 @@ fun SettingsScreen(
                 )
             }
 
-            // 5. Terminal & Shizuku Service
+            // Terminal & Shizuku service
             GoogleSectionHeader(title = "Terminal & Shizuku Service")
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 MaterialSettingsCard(
@@ -321,7 +321,7 @@ fun SettingsScreen(
                 )
             }
 
-            // 6. Updates & Distribution
+            // Updates & distribution
             GoogleSectionHeader(title = "Updates & Distribution")
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 MaterialSettingsCard(
@@ -379,7 +379,7 @@ fun SettingsScreen(
                 )
             }
 
-            // 7. About RyTuneX
+            // About RyTuneX
             GoogleSectionHeader(title = "About")
             MaterialSettingsCard(
                 title = "RyTuneX for Android",
@@ -399,7 +399,7 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.navigationBarsPadding().height(130.dp))
         }
 
-        // Floating Top Pill Header (visible when scrolled) - KEEP per user constraint
+        // Floating header pill (visible when scrolled)
         FloatingTopPillHeader(
             visible = isScrolled,
             title = "Settings",
@@ -408,7 +408,7 @@ fun SettingsScreen(
             }
         )
 
-        // About Pop-up Dialog
+        // About dialog
         if (showAboutDialog) {
             ExpressiveAlertDialog(
                 onDismissRequest = { showAboutDialog = false },
@@ -496,7 +496,7 @@ fun SettingsScreen(
             )
         }
 
-        // Reset Confirmation Dialog
+        // Reset dialog
         if (showResetDialog) {
             ExpressiveAlertDialog(
                 onDismissRequest = { showResetDialog = false },
@@ -527,7 +527,7 @@ fun SettingsScreen(
             )
         }
 
-        // App Update Dialog
+        // Update dialog
         if (showUpdateDialog && AppUpdateManager.latestReleaseInfo != null) {
             AppUpdateDialog(
                 releaseInfo = AppUpdateManager.latestReleaseInfo!!,

@@ -49,9 +49,7 @@ enum class AlertType(val title: String) {
     CAUTION("Caution")
 }
 
-/**
- * Tokenizes markdown text into structured blocks (headings, lists, code blocks, alerts, dividers).
- */
+// Tokenizes markdown into structured blocks (headings, lists, code, alerts, dividers)
 fun parseMarkdownBlocks(markdown: String): List<MarkdownBlock> {
     val blocks = mutableListOf<MarkdownBlock>()
     val lines = markdown.lines()
@@ -175,9 +173,7 @@ fun parseMarkdownBlocks(markdown: String): List<MarkdownBlock> {
     return blocks
 }
 
-/**
- * Parses inline formatting (bold, italic, code, links, strikethrough) into AnnotatedString.
- */
+// Parses inline formatting (bold, italic, code, links, strikethrough) into AnnotatedString
 @Composable
 fun parseMarkdownInline(
     text: String,
@@ -187,12 +183,7 @@ fun parseMarkdownInline(
 ): AnnotatedString {
     return remember(text, primaryColor, codeBgColor, codeTextColor) {
         buildAnnotatedString {
-            // Regex to find tokens:
-            // 1: Link [text](url) -> 2: text, 3: url
-            // 4: Bold **text** -> 5: text
-            // 6: Strikethrough ~~text~~ -> 7: text
-            // 8: Inline code `text` -> 9: text
-            // 10: Italic *text* -> 11: text
+            // Token regex groups: 1 link (text,url), 4 bold, 6 strikethrough, 8 code, 10 italic
             val tokenRegex = Regex("""(\[([^\]]+)\]\(([^)]+)\))|(\*\*([^*]+)\*\*)|(~~([^~]+)~~)|(`([^`]+)`)|(\*([^*]+)\*)""")
             var lastIndex = 0
 
@@ -260,9 +251,7 @@ fun parseMarkdownInline(
     }
 }
 
-/**
- * Text composable that renders styled markdown text with clickable URL links.
- */
+// Text that renders styled markdown with clickable URL links
 @Composable
 fun MarkdownText(
     text: String,
@@ -295,9 +284,7 @@ fun MarkdownText(
     )
 }
 
-/**
- * Native, responsive Markdown renderer tailored for GitHub release notes and changelogs.
- */
+// Markdown renderer tailored for GitHub release notes
 @Composable
 fun MarkdownContent(
     markdown: String,

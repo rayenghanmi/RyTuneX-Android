@@ -21,14 +21,10 @@ import kotlinx.coroutines.withContext
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 
-/**
- * High-performance asynchronous App Icon Manager for RyTuneX.
- * Uses an in-memory LRU cache and background batch preloading to achieve 120 FPS
- * smooth scrolling in the Universal Debloater package list.
- */
+// In-memory LRU icon cache with background batch preloading.
 object AppIconManager {
 
-    // Cache up to 1000 app icons in memory (~20MB RAM for 72x72 scaled bitmaps)
+    // LRU cache: ~1000 icons, roughly 20MB for 96x96 bitmaps
     private val iconCache = LruCache<String, ImageBitmap>(1000)
 
     // Remember failed packages to avoid repeated binder IPC queries
@@ -40,41 +36,35 @@ object AppIconManager {
         return failedPackages.contains(packageName)
     }
 
-    /**
-     * Fast non-blocking synchronous cache check for Compose UI thread.
-     * Returns immediately in 0ms without performing disk I/O or Binder IPC.
-     */
+    // Non-blocking cache-only lookup
     fun getCached(packageName: String): ImageBitmap? {
         if (failedPackages.contains(packageName)) return null
         return iconCache.get(packageName)
     }
 
-    /**
-     * Pause background preloader during active drag gestures if needed.
-     */
+    // Pauses the background preloader
     fun pausePreload() {
         preloadJob?.cancel()
         preloadJob = null
     }
 
-    /**
-     * Asynchronously loads, scales, and caches the app icon on Dispatchers.IO.
-     * Never blocks the Main Android UI thread.
-     */
+    // Query flags including disabled components and uninstalled apps on API 24+
+    private fun installedAppsQueryFlags(): Int = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+        PackageManager.MATCH_UNINSTALLED_PACKAGES or PackageManager.MATCH_DISABLED_COMPONENTS
+    } else {
+        @Suppress("DEPRECATION")
+        PackageManager.GET_UNINSTALLED_PACKAGES or PackageManager.GET_DISABLED_COMPONENTS
+    }
+
+    // Loads and caches an icon on Dispatchers.IO
     suspend fun loadIcon(context: Context, packageName: String): ImageBitmap? = withContext(Dispatchers.IO) {
         if (failedPackages.contains(packageName)) return@withContext null
         iconCache.get(packageName)?.let { return@withContext it }
 
         try {
             val pm = context.packageManager
-            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                PackageManager.MATCH_UNINSTALLED_PACKAGES or PackageManager.MATCH_DISABLED_COMPONENTS
-            } else {
-                @Suppress("DEPRECATION")
-                PackageManager.GET_UNINSTALLED_PACKAGES or PackageManager.GET_DISABLED_COMPONENTS
-            }
             val drawable = try {
-                val appInfo = pm.getApplicationInfo(packageName, flags)
+                val appInfo = pm.getApplicationInfo(packageName, installedAppsQueryFlags())
                 appInfo.loadIcon(pm)
             } catch (_: Throwable) {
                 pm.getApplicationIcon(packageName)
@@ -89,10 +79,7 @@ object AppIconManager {
         }
     }
 
-    /**
-     * Fast background pre-warming of all installed package icons.
-     * Resolves icons using bulk ApplicationInfo to minimize Binder IPC overhead.
-     */
+    // Pre-warms the cache for the given package list
     fun preloadIcons(context: Context, packageNames: List<String>) {
         preloadJob?.cancel()
         preloadJob = CoroutineScope(Dispatchers.IO).launch {
@@ -101,14 +88,8 @@ object AppIconManager {
             } catch (_: Throwable) {}
 
             val pm = context.packageManager
-            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                PackageManager.MATCH_UNINSTALLED_PACKAGES or PackageManager.MATCH_DISABLED_COMPONENTS
-            } else {
-                @Suppress("DEPRECATION")
-                PackageManager.GET_UNINSTALLED_PACKAGES or PackageManager.GET_DISABLED_COMPONENTS
-            }
             val installedAppsMap = try {
-                pm.getInstalledApplications(flags).associateBy { it.packageName }
+                pm.getInstalledApplications(installedAppsQueryFlags()).associateBy { it.packageName }
             } catch (_: Throwable) {
                 emptyMap<String, ApplicationInfo>()
             }
@@ -129,7 +110,39 @@ object AppIconManager {
                     failedPackages.add(pkg)
                 }
 
-                // Smooth batching to keep CPU cool and prevent thread starvation
+                // Yield between icons to avoid starving other work
+                delay(3L)
+            }
+        }
+    }
+
+    // Pre-warms every installed package icon in one bulk query
+    fun preloadAllIcons(context: Context) {
+        preloadJob?.cancel()
+        preloadJob = CoroutineScope(Dispatchers.IO).launch {
+            try {
+                Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND)
+            } catch (_: Throwable) {}
+
+            val pm = context.packageManager
+            val installedAppsMap = try {
+                pm.getInstalledApplications(installedAppsQueryFlags()).associateBy { it.packageName }
+            } catch (_: Throwable) {
+                emptyMap<String, ApplicationInfo>()
+            }
+
+            for (pkg in installedAppsMap.keys) {
+                if (iconCache.get(pkg) != null || failedPackages.contains(pkg)) continue
+
+                try {
+                    val drawable = installedAppsMap[pkg]?.let { it.loadIcon(pm) }
+                        ?: pm.getApplicationIcon(pkg)
+                    iconCache.put(pkg, drawableToBitmap(drawable).asImageBitmap())
+                } catch (_: Throwable) {
+                    failedPackages.add(pkg)
+                }
+
+                // Yield between icons to avoid starving other work
                 delay(3L)
             }
         }

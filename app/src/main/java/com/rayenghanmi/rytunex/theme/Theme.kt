@@ -105,7 +105,7 @@ fun RyTuneXTheme(
     }
 }
 
-// Backward compatibility overload for existing call sites
+// Backward-compatible overload
 @Composable
 fun RyTuneXTheme(
     darkTheme: Boolean,

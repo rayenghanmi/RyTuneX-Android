@@ -57,18 +57,7 @@ class MainActivity : ComponentActivity() {
         Shizuku.addBinderReceivedListenerSticky(binderReceivedListener)
         Shizuku.addBinderDeadListener(binderDeadListener)
         checkShizukuState()
-
-        // Pre-warm initial system and hardware queries asynchronously
-        lifecycleScope.launch(Dispatchers.IO) {
-            AdaptiveDeviceInspector.queryHardwareDisplayModes(forceRefresh = false)
-        }
-        if (shizukuGranted) {
-            onShizukuPrivilegeGranted()
-        } else {
-            lifecycleScope.launch(Dispatchers.IO) {
-                RyTuneXDeepEngine.readCurrentSystemState(forceRefresh = false)
-            }
-        }
+        // Unprivileged warm-up lives in RyTuneXApp; grants re-probe via the listeners
 
         if (SettingsManager.autoCheckUpdates) {
             lifecycleScope.launch(Dispatchers.IO) {
@@ -138,6 +127,8 @@ class MainActivity : ComponentActivity() {
                 } else {
                     shizukuGranted = true
                     AdaptiveDeviceInspector.updateShizukuPrivilege(true)
+                    // Re-probe if privilege was already granted (state desync)
+                    onShizukuPrivilegeGranted()
                 }
             } else {
                 openShizukuApp()

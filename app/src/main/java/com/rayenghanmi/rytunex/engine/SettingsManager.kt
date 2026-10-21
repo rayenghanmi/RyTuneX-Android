@@ -33,10 +33,7 @@ enum class DebloatAction(val label: String) {
     UNINSTALL("Uninstall (User 0)")
 }
 
-/**
- * Centralized Settings and Preference State Manager for RyTuneX.
- * Persists user choices to SharedPreferences and exposes reactive Compose states.
- */
+// Central settings store backed by SharedPreferences exposing Compose state.
 object SettingsManager {
     private const val PREFS_NAME = "rytunex_preferences"
     private const val KEY_THEME_MODE = "theme_mode"

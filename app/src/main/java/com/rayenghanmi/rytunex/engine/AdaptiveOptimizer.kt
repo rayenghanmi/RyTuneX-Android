@@ -48,7 +48,7 @@ object AdaptiveOptimizer {
                         "settings put secure refresh_rate_mode 1; " +
                         "settings put system refresh_rate_mode 1; " +
 
-                        // 2. Ultra-responsive 0.25x animation scale
+                        // 2. 0.25x animation scale
                         "settings put global window_animation_scale 0.25; " +
                         "settings put global transition_animation_scale 0.25; " +
                         "settings put global animator_duration_scale 0.25; " +
