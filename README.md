@@ -90,7 +90,7 @@ Bloatware package definitions are sourced from the [Universal Android Debloater 
 
 * **Website**: [rayenghanmi.github.io/rytunex](https://rayenghanmi.github.io/rytunex/)
 * **Discord**: [Join the RyTuneX Community](https://discord.gg/gyBzyd364t)
-* **Email**: [rytunex@gmail.com](mailto:rytunex@gmail.com)
+* **Email**: [rytunex.android@gmail.com](mailto:rytunex.android@gmail.com)
 
 ---
 <p align="center">© 2026 Rayen Ghanmi. Android is a trademark of Google LLC.</p>
