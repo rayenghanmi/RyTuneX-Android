@@ -37,6 +37,7 @@ import com.rayenghanmi.rytunex.engine.AppUpdateManager
 import com.rayenghanmi.rytunex.engine.RyTuneXDeepEngine
 import com.rayenghanmi.rytunex.engine.SettingsManager
 import com.rayenghanmi.rytunex.model.DeviceInfo
+import com.rayenghanmi.rytunex.model.ProfileDeviceSpec
 import com.rayenghanmi.rytunex.model.ProfileType
 import com.rayenghanmi.rytunex.theme.SemanticGreen
 import com.rayenghanmi.rytunex.theme.SemanticRed
@@ -71,10 +72,28 @@ fun DashboardScreen(
 
     var deviceInfo by remember { mutableStateOf(DeviceInfo()) }
 
+    // Live panel modes and Vulkan support drive the profile descriptions
+    val profileSpec by remember(deviceInfo.display.supportedRates) {
+        derivedStateOf {
+            val rates = deviceInfo.display.supportedRates
+            ProfileDeviceSpec(
+                maxHz = rates.maxOrNull()?.toInt() ?: 60,
+                lowHz = rates.filter { it <= 60f }.maxOrNull()?.toInt()
+                    ?: (rates.maxOrNull()?.toInt() ?: 60),
+                multiMode = rates.size > 1,
+                vulkanSupported = AdaptiveOptimizer.isVulkanSupported(context)
+            )
+        }
+    }
+
     fun applyProfileInternal(profile: ProfileType) {
         executingProfile = profile
         scope.launch {
-            val res = AdaptiveOptimizer.applyProfile(context, profile, deviceInfo.display)
+            // Load real panel modes before building profile commands
+            if (deviceInfo.display.supportedRates.size <= 1) {
+                deviceInfo = AdaptiveDeviceInspector.inspectFullDevice(context, isShizukuReady)
+            }
+            val res = AdaptiveOptimizer.applyProfile(context, profile, deviceInfo)
             executingProfile = null
             activeProfile = profile
             isLastActionSuccess = res.isSuccess
@@ -443,7 +462,7 @@ fun DashboardScreen(
                         }
 
                         Text(
-                            text = profile.getDescription(deviceInfo.display.supportedRates.maxOrNull()?.toInt() ?: 60),
+                            text = profile.getDescription(profileSpec),
                             style = MaterialTheme.typography.bodySmall,
                             color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.9f) else MaterialTheme.colorScheme.onSurfaceVariant,
                             lineHeight = 16.sp

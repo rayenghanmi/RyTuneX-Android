@@ -26,6 +26,7 @@ import com.rayenghanmi.rytunex.engine.AdaptiveOptimizer
 import com.rayenghanmi.rytunex.engine.DnsProvider
 import com.rayenghanmi.rytunex.engine.RyTuneXDeepEngine
 import com.rayenghanmi.rytunex.engine.SettingsManager
+import com.rayenghanmi.rytunex.engine.SystemTuningState
 import com.rayenghanmi.rytunex.theme.SemanticGreen
 import com.rayenghanmi.rytunex.ui.components.*
 import kotlinx.coroutines.Dispatchers
@@ -72,6 +73,22 @@ fun OptimizationsScreen(
     var logsSuppressed by remember { mutableStateOf(cachedState?.isLoggingSuppressed ?: false) }
     var phantomBypassed by remember { mutableStateOf(cachedState?.isPhantomBypassed ?: false) }
 
+    // Additional efficiency & latency tunables
+    var hwOverlaysDisabled by remember { mutableStateOf(cachedState?.isHwOverlaysDisabled ?: false) }
+    var appFreezerEnabled by remember { mutableStateOf(cachedState?.isAppFreezerEnabled ?: true) }
+    var netstatsDisabled by remember { mutableStateOf(cachedState?.isNetstatsDisabled ?: false) }
+    var adaptiveBatteryEnabled by remember { mutableStateOf(cachedState?.isAdaptiveBatteryEnabled ?: true) }
+    var scanThrottleEnabled by remember { mutableStateOf(cachedState?.isScanThrottleEnabled ?: true) }
+    var appStandbyEnabled by remember { mutableStateOf(cachedState?.isAppStandbyEnabled ?: true) }
+    var stayAwakeCharging by remember { mutableStateOf(cachedState?.isStayAwakeCharging ?: false) }
+    var stickyBatterySaver by remember { mutableStateOf(cachedState?.isLowPowerSticky ?: false) }
+    var lowPowerTrigger by remember { mutableStateOf(cachedState?.lowPowerTriggerLevel) }
+
+    // Render resolution override
+    var nativeResolution by remember { mutableStateOf(cachedState?.nativeResolution) }
+    var overrideResolution by remember { mutableStateOf(cachedState?.overrideResolution) }
+    var selectedResolutionScale by remember { mutableFloatStateOf(1f) }
+
     var isLockingHz by remember { mutableStateOf(false) }
     var isResettingHz by remember { mutableStateOf(false) }
     var isApplyingAnim by remember { mutableStateOf(false) }
@@ -80,6 +97,8 @@ fun OptimizationsScreen(
     var isApplyingArt by remember { mutableStateOf(false) }
     var isTrimmingStorage by remember { mutableStateOf(false) }
     var isCompactingMemory by remember { mutableStateOf(false) }
+    var isFlushingLogs by remember { mutableStateOf(false) }
+    var isApplyingResolution by remember { mutableStateOf(false) }
     var isLastActionSuccess by remember { mutableStateOf(true) }
 
     var pendingConfirmAction by remember { mutableStateOf<(() -> Unit)?>(null) }
@@ -93,6 +112,16 @@ fun OptimizationsScreen(
             pendingConfirmAction = action
         } else {
             action()
+        }
+    }
+
+    fun inferResolutionScale(state: SystemTuningState?): Float {
+        val override = state?.overrideResolution ?: return 1f
+        val native = state.nativeResolution
+        return if (native != null && native.first > 0) {
+            (override.first.toFloat() / native.first.toFloat()).coerceIn(0.5f, 1f)
+        } else {
+            0f
         }
     }
 
@@ -131,6 +160,18 @@ fun OptimizationsScreen(
                 aggressiveDozeEnabled = state.isAggressiveDozeEnabled
                 logsSuppressed = state.isLoggingSuppressed
                 phantomBypassed = state.isPhantomBypassed
+                hwOverlaysDisabled = state.isHwOverlaysDisabled
+                appFreezerEnabled = state.isAppFreezerEnabled
+                netstatsDisabled = state.isNetstatsDisabled
+                adaptiveBatteryEnabled = state.isAdaptiveBatteryEnabled
+                scanThrottleEnabled = state.isScanThrottleEnabled
+                appStandbyEnabled = state.isAppStandbyEnabled
+                stayAwakeCharging = state.isStayAwakeCharging
+                stickyBatterySaver = state.isLowPowerSticky
+                lowPowerTrigger = state.lowPowerTriggerLevel
+                nativeResolution = state.nativeResolution
+                overrideResolution = state.overrideResolution
+                selectedResolutionScale = inferResolutionScale(state)
                 if (state.peakRefreshRate != null && state.peakRefreshRate > 0 && rates.contains(state.peakRefreshRate)) {
                     selectedHz = state.peakRefreshRate
                 } else if (!rates.contains(selectedHz)) {
@@ -162,6 +203,18 @@ fun OptimizationsScreen(
         aggressiveDozeEnabled = state.isAggressiveDozeEnabled
         logsSuppressed = state.isLoggingSuppressed
         phantomBypassed = state.isPhantomBypassed
+        hwOverlaysDisabled = state.isHwOverlaysDisabled
+        appFreezerEnabled = state.isAppFreezerEnabled
+        netstatsDisabled = state.isNetstatsDisabled
+        adaptiveBatteryEnabled = state.isAdaptiveBatteryEnabled
+        scanThrottleEnabled = state.isScanThrottleEnabled
+        appStandbyEnabled = state.isAppStandbyEnabled
+        stayAwakeCharging = state.isStayAwakeCharging
+        stickyBatterySaver = state.isLowPowerSticky
+        lowPowerTrigger = state.lowPowerTriggerLevel
+        nativeResolution = state.nativeResolution
+        overrideResolution = state.overrideResolution
+        selectedResolutionScale = inferResolutionScale(state)
         if (state.peakRefreshRate != null && state.peakRefreshRate > 0) {
             selectedHz = state.peakRefreshRate
         }
@@ -498,6 +551,129 @@ fun OptimizationsScreen(
                 )
             }
 
+            // Render resolution scaling
+            GoogleSectionHeader(title = "RENDER RESOLUTION & SCALING")
+
+            GoogleGroupedCard {
+                GoogleSettingsRow(
+                    title = "Output Resolution Override",
+                    subtitle = "Native: ${nativeResolution?.first ?: "?"}x${nativeResolution?.second ?: "?"} • Active: ${
+                        (overrideResolution ?: nativeResolution)?.let { "${it.first}x${it.second}" } ?: "?"
+                    }. Scales the GPU render surface to reduce fill-rate work and improve frame pacing",
+                    icon = Icons.Rounded.AspectRatio,
+                    iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    iconColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf(
+                        "Native (100%)" to 1f,
+                        "90%" to 0.9f,
+                        "85%" to 0.85f,
+                        "75%" to 0.75f
+                    ).forEach { (label, value) ->
+                        val isSelected = Math.abs(selectedResolutionScale - value) < 0.02f
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { selectedResolutionScale = value },
+                            label = { Text(label, fontWeight = FontWeight.SemiBold, softWrap = false, maxLines = 1) },
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            val scale = selectedResolutionScale
+                            executeWithConfirmation(
+                                title = if (scale >= 0.99f) "Reset Render Resolution" else "Scale Render Resolution",
+                                message = if (scale >= 0.99f) {
+                                    "Clear the resolution override and return the panel to its native size?"
+                                } else {
+                                    "Override the render resolution to ${
+                                        nativeResolution?.let {
+                                            val w = ((it.first * scale) / 2f).toInt() * 2
+                                            val h = ((it.second * scale) / 2f).toInt() * 2
+                                            "${w}x${h}"
+                                        } ?: "a scaled size"
+                                    }? Apps keep the same aspect ratio and you can restore native at any time."
+                                }
+                            ) {
+                                scope.launch {
+                                    isApplyingResolution = true
+                                    val res = RyTuneXDeepEngine.applyRenderResolution(scale)
+                                    isApplyingResolution = false
+                                    isLastActionSuccess = res.isSuccess
+                                    val pctLabel = String.format(Locale.US, "%.0f", scale * 100)
+                                    val msg = if (res.isSuccess) {
+                                        if (scale >= 0.99f) "Render resolution restored to native" else "Render resolution scaled to $pctLabel%"
+                                    } else {
+                                        "Resolution change failed: ${res.stderr}"
+                                    }
+                                    showStatusToast(msg)
+                                    onLogUpdate("[RENDER RESOLUTION]: $pctLabel% • ${res.output}")
+                                }
+                            }
+                        },
+                        enabled = !isApplyingResolution && nativeResolution != null,
+                        shape = RoundedCornerShape(16.dp),
+                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp)
+                    ) {
+                        if (isApplyingResolution) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                        }
+                        Text(
+                            if (selectedResolutionScale >= 0.99f) "Reset to Native Resolution"
+                            else "Apply ${String.format(Locale.US, "%.0f", selectedResolutionScale * 100)}% Scale",
+                            fontWeight = FontWeight.SemiBold,
+                            softWrap = false,
+                            maxLines = 1
+                        )
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            executeWithConfirmation(
+                                title = "Reset Render Resolution",
+                                message = "Clear the resolution override and return the panel to its native size?"
+                            ) {
+                                scope.launch {
+                                    isApplyingResolution = true
+                                    val res = RyTuneXDeepEngine.applyRenderResolution(1f)
+                                    isApplyingResolution = false
+                                    isLastActionSuccess = res.isSuccess
+                                    val msg = if (res.isSuccess) "Render resolution restored to native" else "Resolution reset failed: ${res.stderr}"
+                                    showStatusToast(msg)
+                                    onLogUpdate("[RENDER RESOLUTION]: Native • ${res.output}")
+                                }
+                            }
+                        },
+                        enabled = !isApplyingResolution && overrideResolution != null,
+                        shape = RoundedCornerShape(16.dp),
+                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp)
+                    ) {
+                        Text("Restore Native", fontWeight = FontWeight.SemiBold, softWrap = false, maxLines = 1)
+                    }
+                }
+            }
+
             // Touch & GPU acceleration
             GoogleSectionHeader(title = "INPUT LATENCY & GPU ACCELERATION")
 
@@ -632,7 +808,7 @@ fun OptimizationsScreen(
 
                 GoogleSettingsRow(
                     title = "Vulkan HWUI Graphics Backend",
-                    subtitle = "Routes system UI draw-calls through Vulkan (skiavk) instead of OpenGL ES (skiagl), reducing CPU driver overhead on Android 10+",
+                    subtitle = "Routes app draw-calls through Vulkan (skiavk) instead of OpenGL ES (skiagl), reducing CPU driver overhead on Android 10+. Applies to apps launched after the switch",
                     icon = Icons.Rounded.DeveloperBoard,
                     iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
                     iconColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -651,6 +827,71 @@ fun OptimizationsScreen(
                                     }
                                     showStatusToast(msg)
                                     onLogUpdate("[VULKAN HWUI BACKEND]: Enabled=$checked\n${res.output}")
+                                }
+                            }
+                        )
+                    }
+                )
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+
+                GoogleSettingsRow(
+                    title = "Force GPU Compositing (Disable HW Overlays)",
+                    subtitle = "Runs all layer composition on the GPU. Stabilizes frame pacing and blur rendering, may increase power draw",
+                    icon = Icons.Rounded.Layers,
+                    iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    iconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    trailingContent = {
+                        Switch(
+                            checked = hwOverlaysDisabled,
+                            onCheckedChange = { checked ->
+                                hwOverlaysDisabled = checked
+                                scope.launch {
+                                    val res = RyTuneXDeepEngine.setHwOverlaysDisabled(checked)
+                                    isLastActionSuccess = res.isSuccess
+                                    val msg = if (res.isSuccess) {
+                                        if (checked) "Hardware overlays disabled (GPU compositing forced)"
+                                        else "Hardware overlays restored to system default"
+                                    } else {
+                                        "Failed to change HW overlays: ${res.stderr}"
+                                    }
+                                    showStatusToast(msg)
+                                    onLogUpdate("[HW OVERLAYS]: Disabled=$checked\n${res.output}")
+                                }
+                            }
+                        )
+                    }
+                )
+
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+
+                GoogleSettingsRow(
+                    title = "Cached Apps Freezer",
+                    subtitle = "Freezes the CPU of cached background apps instead of only limiting them. Applies to apps newly entering the cache",
+                    icon = Icons.Rounded.AcUnit,
+                    iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    iconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    trailingContent = {
+                        Switch(
+                            checked = appFreezerEnabled,
+                            onCheckedChange = { checked ->
+                                appFreezerEnabled = checked
+                                scope.launch {
+                                    val res = RyTuneXDeepEngine.setCachedAppFreezer(checked)
+                                    isLastActionSuccess = res.isSuccess
+                                    val msg = if (res.isSuccess) {
+                                        if (checked) "App Freezer enabled for cached apps"
+                                        else "App Freezer disabled"
+                                    } else {
+                                        "Failed to change App Freezer: ${res.stderr}"
+                                    }
+                                    showStatusToast(msg)
+                                    onLogUpdate("[CACHED APPS FREEZER]: Enabled=$checked\n${res.output}")
                                 }
                             }
                         )
@@ -743,6 +984,38 @@ fun OptimizationsScreen(
                                     }
                                     showStatusToast(msg)
                                     onLogUpdate("[NETWORK RADIO POWER SAVE]: Enabled=$checked\n${res.output}")
+                                }
+                            }
+                        )
+                    }
+                )
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+
+                GoogleSettingsRow(
+                    title = "Wi-Fi Scan Throttle Bypass",
+                    subtitle = "Removes the scan backoff between background Wi-Fi scans. Faster GPS locks, indoor positioning and roaming reconnection",
+                    icon = Icons.Rounded.WifiFind,
+                    iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    iconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    trailingContent = {
+                        Switch(
+                            checked = scanThrottleEnabled,
+                            onCheckedChange = { checked ->
+                                scanThrottleEnabled = checked
+                                scope.launch {
+                                    val res = RyTuneXDeepEngine.setWifiScanThrottle(checked)
+                                    isLastActionSuccess = res.isSuccess
+                                    val msg = if (res.isSuccess) {
+                                        if (checked) "Wi-Fi scan throttling restored (stock behavior)"
+                                        else "Wi-Fi scan throttling bypassed (unrestricted background scans)"
+                                    } else {
+                                        "Failed to change scan throttling: ${res.stderr}"
+                                    }
+                                    showStatusToast(msg)
+                                    onLogUpdate("[WIFI SCAN THROTTLE]: Enabled=$checked\n${res.output}")
                                 }
                             }
                         )
@@ -896,6 +1169,274 @@ fun OptimizationsScreen(
                         )
                     }
                 )
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+
+                GoogleSettingsRow(
+                    title = "App Standby & Doze Buckets",
+                    subtitle = "Restricts idle apps based on usage buckets, covering CPU, network and job scheduling",
+                    icon = Icons.Rounded.Snooze,
+                    iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    iconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    trailingContent = {
+                        Switch(
+                            checked = appStandbyEnabled,
+                            onCheckedChange = { checked ->
+                                appStandbyEnabled = checked
+                                scope.launch {
+                                    val res = RyTuneXDeepEngine.setAppStandby(checked)
+                                    isLastActionSuccess = res.isSuccess
+                                    val msg = if (res.isSuccess) {
+                                        if (checked) "App Standby buckets enabled"
+                                        else "App Standby buckets disabled (unrestricted background apps)"
+                                    } else {
+                                        "Failed to change App Standby: ${res.stderr}"
+                                    }
+                                    showStatusToast(msg)
+                                    onLogUpdate("[APP STANDBY BUCKETS]: Enabled=$checked\n${res.output}")
+                                }
+                            }
+                        )
+                    }
+                )
+
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+
+                GoogleSettingsRow(
+                    title = "Adaptive On-Device Battery",
+                    subtitle = "System-managed Doze anticipation using the device power model. Disable to keep background connectivity unrestricted",
+                    icon = Icons.Rounded.BatterySaver,
+                    iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    iconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    trailingContent = {
+                        Switch(
+                            checked = adaptiveBatteryEnabled,
+                            onCheckedChange = { checked ->
+                                adaptiveBatteryEnabled = checked
+                                scope.launch {
+                                    val res = RyTuneXDeepEngine.setAdaptiveBattery(checked)
+                                    isLastActionSuccess = res.isSuccess
+                                    val msg = if (res.isSuccess) {
+                                        if (checked) "Adaptive battery management enabled"
+                                        else "Adaptive battery management disabled"
+                                    } else {
+                                        "Failed to change adaptive battery: ${res.stderr}"
+                                    }
+                                    showStatusToast(msg)
+                                    onLogUpdate("[ADAPTIVE BATTERY]: Enabled=$checked\n${res.output}")
+                                }
+                            }
+                        )
+                    }
+                )
+
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+
+                GoogleSettingsRow(
+                    title = "Disable Network Stats Collection",
+                    subtitle = "Stops periodic netstats accounting and its flash writes, lowering background disk I/O. Per-app traffic history stops updating",
+                    icon = Icons.Rounded.DataUsage,
+                    iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    iconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    trailingContent = {
+                        Switch(
+                            checked = netstatsDisabled,
+                            onCheckedChange = { checked ->
+                                netstatsDisabled = checked
+                                scope.launch {
+                                    val res = RyTuneXDeepEngine.setNetworkStatsCollection(!checked)
+                                    isLastActionSuccess = res.isSuccess
+                                    val msg = if (res.isSuccess) {
+                                        if (checked) "Network stats collection disabled"
+                                        else "Network stats collection restored"
+                                    } else {
+                                        "Failed to change network stats: ${res.stderr}"
+                                    }
+                                    showStatusToast(msg)
+                                    onLogUpdate("[NETWORK STATS COLLECTION]: Disabled=$checked\n${res.output}")
+                                }
+                            }
+                        )
+                    }
+                )
+
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+
+                GoogleSettingsRow(
+                    title = "Stay Awake While Charging",
+                    subtitle = "Keeps the screen on while charging on AC, USB or wireless",
+                    icon = Icons.Rounded.ScreenLockPortrait,
+                    iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    iconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    trailingContent = {
+                        Switch(
+                            checked = stayAwakeCharging,
+                            onCheckedChange = { checked ->
+                                stayAwakeCharging = checked
+                                scope.launch {
+                                    val res = RyTuneXDeepEngine.setStayAwakeCharging(checked)
+                                    isLastActionSuccess = res.isSuccess
+                                    val msg = if (res.isSuccess) {
+                                        if (checked) "Stay awake while charging enabled"
+                                        else "Stay awake while charging disabled"
+                                    } else {
+                                        "Failed to change stay awake: ${res.stderr}"
+                                    }
+                                    showStatusToast(msg)
+                                    onLogUpdate("[STAY AWAKE CHARGING]: Enabled=$checked\n${res.output}")
+                                }
+                            }
+                        )
+                    }
+                )
+
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+
+                GoogleSettingsRow(
+                    title = "Sticky Battery Saver",
+                    subtitle = "Keeps Battery Saver on after a full recharge until disabled manually",
+                    icon = Icons.Rounded.BatteryChargingFull,
+                    iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    iconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    trailingContent = {
+                        Switch(
+                            checked = stickyBatterySaver,
+                            onCheckedChange = { checked ->
+                                stickyBatterySaver = checked
+                                scope.launch {
+                                    val res = RyTuneXDeepEngine.setStickyBatterySaver(checked)
+                                    isLastActionSuccess = res.isSuccess
+                                    val msg = if (res.isSuccess) {
+                                        if (checked) "Sticky Battery Saver enabled (persists after recharge)"
+                                        else "Sticky Battery Saver disabled"
+                                    } else {
+                                        "Failed to change sticky battery saver: ${res.stderr}"
+                                    }
+                                    showStatusToast(msg)
+                                    onLogUpdate("[STICKY BATTERY SAVER]: Enabled=$checked\n${res.output}")
+                                }
+                            }
+                        )
+                    }
+                )
+
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+
+                GoogleSettingsRow(
+                    title = "Automatic Battery Saver Trigger",
+                    subtitle = "Enters Battery Saver when the charge level drops to the selected threshold",
+                    icon = Icons.Rounded.BatteryAlert,
+                    iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    iconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    bottomContent = {
+                        FlowRow(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            listOf<Int?>(null, 15, 30, 50).forEach { level ->
+                                FilterChip(
+                                    selected = lowPowerTrigger == level,
+                                    onClick = {
+                                        lowPowerTrigger = level
+                                        scope.launch {
+                                            val res = RyTuneXDeepEngine.setLowPowerTriggerLevel(level)
+                                            isLastActionSuccess = res.isSuccess
+                                            val msg = if (res.isSuccess) {
+                                                if (level == null) "Automatic battery saver disabled"
+                                                else "Battery Saver triggers automatically at $level%"
+                                            } else {
+                                                "Failed to set battery saver trigger: ${res.stderr}"
+                                            }
+                                            showStatusToast(msg)
+                                            onLogUpdate("[AUTO BATTERY SAVER]: ${level?.toString() ?: "Off"}\n${res.output}")
+                                        }
+                                    },
+                                    label = {
+                                        Text(
+                                            level?.let { "$it%" } ?: "Off",
+                                            fontWeight = FontWeight.SemiBold,
+                                            softWrap = false,
+                                            maxLines = 1
+                                        )
+                                    },
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                            }
+                        }
+                    }
+                )
+
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+
+                GoogleSettingsRow(
+                    title = "Flush Log Buffers",
+                    subtitle = "Clears logcat buffers and the kernel dmesg ring buffer",
+                    icon = Icons.Rounded.Terminal,
+                    iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    iconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    bottomContent = {
+                        FilledTonalButton(
+                            onClick = {
+                                executeWithConfirmation(
+                                    title = "Flush Log Buffers",
+                                    message = "Clear every logcat buffer and the kernel ring buffer? Historical logs will be lost."
+                                ) {
+                                    scope.launch {
+                                        isFlushingLogs = true
+                                        val res = RyTuneXDeepEngine.flushLogBuffers()
+                                        isFlushingLogs = false
+                                        isLastActionSuccess = res.isSuccess
+                                        val msg = if (res.isSuccess) {
+                                            "Logcat and kernel ring buffers flushed"
+                                        } else {
+                                            "Log flush failed: ${res.stderr.ifBlank { res.stdout }}"
+                                        }
+                                        showStatusToast(msg)
+                                        onLogUpdate("[LOG BUFFER FLUSH]: ${res.output}")
+                                    }
+                                }
+                            },
+                            enabled = !isFlushingLogs,
+                            shape = RoundedCornerShape(14.dp),
+                            contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp)
+                        ) {
+                            if (isFlushingLogs) {
+                                CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                                Spacer(modifier = Modifier.width(6.dp))
+                            }
+                            Text(
+                                if (isFlushingLogs) "Flushing Buffers..." else "Flush Buffers",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                softWrap = false,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                )
             }
 
             // Storage & memory
@@ -1024,6 +1565,7 @@ fun OptimizationsScreen(
                     listOf(
                         "speed-profile" to "Speed Profile (PGO)",
                         "speed" to "Full AOT Speed",
+                        "quicken" to "Quicken (Fastest)",
                         "bg-dexopt" to "Background DexOpt"
                     ).forEach { (mode, title) ->
                         val isSel = artMode == mode

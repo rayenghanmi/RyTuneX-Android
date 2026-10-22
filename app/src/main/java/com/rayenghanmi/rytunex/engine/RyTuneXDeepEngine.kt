@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlin.math.roundToInt
 import rikka.shizuku.Shizuku
 import android.content.pm.PackageManager
 
@@ -34,7 +35,18 @@ data class SystemTuningState(
     val isPhantomBypassed: Boolean = false,
     val isForceHwUiEnabled: Boolean = false,
     val isPredictiveBackEnabled: Boolean = false,
-    val isVulkanRendererEnabled: Boolean = false
+    val isVulkanRendererEnabled: Boolean = false,
+    val isHwOverlaysDisabled: Boolean = false,
+    val isAppFreezerEnabled: Boolean = true,
+    val isNetstatsDisabled: Boolean = false,
+    val isAdaptiveBatteryEnabled: Boolean = true,
+    val isScanThrottleEnabled: Boolean = true,
+    val isAppStandbyEnabled: Boolean = true,
+    val isStayAwakeCharging: Boolean = false,
+    val isLowPowerSticky: Boolean = false,
+    val lowPowerTriggerLevel: Int? = null,
+    val nativeResolution: Pair<Int, Int>? = null,
+    val overrideResolution: Pair<Int, Int>? = null
 )
 
 object RyTuneXDeepEngine {
@@ -81,7 +93,18 @@ object RyTuneXDeepEngine {
                     "echo \"PRED_BACK_GLOBAL:$(settings get global enable_predictive_back_animation 2>/dev/null)\"; " +
                     "echo \"PRED_BACK_SECURE:$(settings get secure enable_predictive_back_animation 2>/dev/null)\"; " +
                     "echo \"RENDERER_PROP:$(getprop debug.hwui.renderer 2>/dev/null)\"; " +
-                    "echo \"RENDERER_GLOBAL:$(settings get global debug.hwui.renderer 2>/dev/null)\""
+                    "echo \"RENDERER_GLOBAL:$(settings get global debug.hwui.renderer 2>/dev/null)\"; " +
+                    "echo \"HW_OVERLAYS:$(settings get global disable_hw_overlays 2>/dev/null)\"; " +
+                    "echo \"APP_FREEZER:$(settings get global cached_apps_freezer_enabled 2>/dev/null)\"; " +
+                    "echo \"NETSTATS:$(settings get global netstats_enabled 2>/dev/null)\"; " +
+                    "echo \"ADAPTIVE_BAT:$(settings get global adaptive_battery_management_enabled 2>/dev/null)\"; " +
+                    "echo \"SCAN_THROTTLE:$(settings get global wifi_scan_throttle_enabled 2>/dev/null)\"; " +
+                    "echo \"STAY_AWAKE:$(settings get global stay_on_while_plugged_in 2>/dev/null)\"; " +
+                    "echo \"LOW_POWER_STICKY:$(settings get global low_power_sticky 2>/dev/null)\"; " +
+                    "echo \"LOW_POWER_LVL:$(settings get global low_power_trigger_level 2>/dev/null)\"; " +
+                    "echo \"APP_STANDBY:$(settings get global app_standby_enabled 2>/dev/null)\"; " +
+                    "echo \"WM_NATIVE:$(wm size | sed -n 's/^Physical size: //p')\"; " +
+                    "echo \"WM_OVERRIDE:$(wm size | sed -n 's/^Override size: //p')\""
 
             val res = ShellEngine.exec(probeCmd)
             if (!res.isSuccess && res.stdout.isBlank()) {
@@ -149,7 +172,19 @@ object RyTuneXDeepEngine {
                 isPhantomBypassed = phantomBypassed,
                 isForceHwUiEnabled = forceHw,
                 isPredictiveBackEnabled = predBack,
-                isVulkanRendererEnabled = isVulkan
+                isVulkanRendererEnabled = isVulkan,
+                isHwOverlaysDisabled = map["HW_OVERLAYS"] == "1",
+                // Missing setting counts as enabled (OEM default)
+                isAppFreezerEnabled = map["APP_FREEZER"] != "0",
+                isNetstatsDisabled = map["NETSTATS"] == "0",
+                isAdaptiveBatteryEnabled = map["ADAPTIVE_BAT"] != "0",
+                isScanThrottleEnabled = map["SCAN_THROTTLE"] != "0",
+                isAppStandbyEnabled = map["APP_STANDBY"] != "0",
+                isStayAwakeCharging = (map["STAY_AWAKE"]?.toIntOrNull() ?: 0) > 0,
+                isLowPowerSticky = map["LOW_POWER_STICKY"] == "1",
+                lowPowerTriggerLevel = map["LOW_POWER_LVL"]?.toIntOrNull()?.takeIf { it > 0 },
+                nativeResolution = parseResolution(map["WM_NATIVE"]),
+                overrideResolution = parseResolution(map["WM_OVERRIDE"])
             )
             hasPrivilegedState = shizukuReady || res.isSuccess
             cachedSystemState = state
@@ -175,15 +210,9 @@ object RyTuneXDeepEngine {
 
     suspend fun optimizeTouchResponse(enable: Boolean): CommandResult = withContext(Dispatchers.IO) {
         val cmd = if (enable) {
-            "settings put system pointer_speed 7; " +
-                    "settings put secure tap_duration_threshold 0; " +
-                    "settings put secure touch_blocking_period 0; " +
-                    "settings put secure long_press_timeout 250"
+            "settings put system pointer_speed 7; settings put secure long_press_timeout 250"
         } else {
-            "settings put system pointer_speed 0; " +
-                    "settings delete secure tap_duration_threshold; " +
-                    "settings delete secure touch_blocking_period; " +
-                    "settings put secure long_press_timeout 400"
+            "settings put system pointer_speed 0; settings put secure long_press_timeout 400"
         }
         val res = ShellEngine.exec(cmd)
         if (res.isSuccess) {
@@ -415,6 +444,214 @@ object RyTuneXDeepEngine {
         res
     }
 
+    // Extra efficiency & latency setters
+
+    suspend fun setHwOverlaysDisabled(disable: Boolean): CommandResult = withContext(Dispatchers.IO) {
+        val flag = if (disable) "1" else "0"
+        val res = ShellEngine.exec("settings put global disable_hw_overlays $flag")
+        if (res.isSuccess) {
+            cachedSystemState = cachedSystemState?.copy(isHwOverlaysDisabled = disable)
+        }
+        res
+    }
+
+    suspend fun setCachedAppFreezer(enable: Boolean): CommandResult = withContext(Dispatchers.IO) {
+        val flag = if (enable) "1" else "0"
+        val res = ShellEngine.exec("settings put global cached_apps_freezer_enabled $flag")
+        if (res.isSuccess) {
+            cachedSystemState = cachedSystemState?.copy(isAppFreezerEnabled = enable)
+        }
+        res
+    }
+
+    suspend fun setNetworkStatsCollection(enabled: Boolean): CommandResult = withContext(Dispatchers.IO) {
+        val flag = if (enabled) "1" else "0"
+        val res = ShellEngine.exec("settings put global netstats_enabled $flag")
+        if (res.isSuccess) {
+            cachedSystemState = cachedSystemState?.copy(isNetstatsDisabled = !enabled)
+        }
+        res
+    }
+
+    suspend fun setAdaptiveBattery(enabled: Boolean): CommandResult = withContext(Dispatchers.IO) {
+        val flag = if (enabled) "1" else "0"
+        val res = ShellEngine.exec("settings put global adaptive_battery_management_enabled $flag")
+        if (res.isSuccess) {
+            cachedSystemState = cachedSystemState?.copy(isAdaptiveBatteryEnabled = enabled)
+        }
+        res
+    }
+
+    suspend fun setWifiScanThrottle(enabled: Boolean): CommandResult = withContext(Dispatchers.IO) {
+        val flag = if (enabled) "1" else "0"
+        val res = ShellEngine.exec("settings put global wifi_scan_throttle_enabled $flag")
+        if (res.isSuccess) {
+            cachedSystemState = cachedSystemState?.copy(isScanThrottleEnabled = enabled)
+        }
+        res
+    }
+
+    suspend fun setAppStandby(enabled: Boolean): CommandResult = withContext(Dispatchers.IO) {
+        val flag = if (enabled) "1" else "0"
+        val res = ShellEngine.exec("settings put global app_standby_enabled $flag")
+        if (res.isSuccess) {
+            cachedSystemState = cachedSystemState?.copy(isAppStandbyEnabled = enabled)
+        }
+        res
+    }
+
+    suspend fun setStayAwakeCharging(enabled: Boolean): CommandResult = withContext(Dispatchers.IO) {
+        // 7 = AC + USB + wireless charger combination
+        val value = if (enabled) "7" else "0"
+        val res = ShellEngine.exec("settings put global stay_on_while_plugged_in $value")
+        if (res.isSuccess) {
+            cachedSystemState = cachedSystemState?.copy(isStayAwakeCharging = enabled)
+        }
+        res
+    }
+
+    suspend fun setStickyBatterySaver(enabled: Boolean): CommandResult = withContext(Dispatchers.IO) {
+        val flag = if (enabled) "1" else "0"
+        val res = ShellEngine.exec("settings put global low_power_sticky $flag")
+        if (res.isSuccess) {
+            cachedSystemState = cachedSystemState?.copy(isLowPowerSticky = enabled)
+        }
+        res
+    }
+
+    suspend fun setLowPowerTriggerLevel(level: Int?): CommandResult = withContext(Dispatchers.IO) {
+        val cmd = if (level == null) {
+            "settings delete global low_power_trigger_level"
+        } else {
+            "settings put global low_power_trigger_level $level"
+        }
+        val res = ShellEngine.exec(cmd)
+        if (res.isSuccess) {
+            cachedSystemState = cachedSystemState?.copy(lowPowerTriggerLevel = level)
+        }
+        res
+    }
+
+    suspend fun flushLogBuffers(): CommandResult = withContext(Dispatchers.IO) {
+        val cmd = "logcat -b all -c 2>/dev/null; dmesg -c 2>/dev/null"
+        val res = ShellEngine.exec(cmd, timeoutMs = 10000L)
+        if (res.isSuccess) {
+            CommandResult(
+                command = cmd,
+                stdout = "Logcat (all buffers) and kernel ring buffers flushed.",
+                stderr = "",
+                exitCode = 0,
+                isSuccess = true
+            )
+        } else {
+            res
+        }
+    }
+
+    private fun parseResolution(raw: String?): Pair<Int, Int>? {
+        val text = raw?.trim().orEmpty()
+        if (text.isBlank() || text.equals("null", true)) return null
+        val match = Regex("""(\d+)\s*[x]\s*(\d+)""").find(text) ?: return null
+        val w = match.groupValues[1].toIntOrNull() ?: return null
+        val h = match.groupValues[2].toIntOrNull() ?: return null
+        return if (w > 0 && h > 0) w to h else null
+    }
+
+    fun updateResolutionState(native: Pair<Int, Int>?, override: Pair<Int, Int>?) {
+        cachedSystemState = cachedSystemState?.copy(
+            nativeResolution = native ?: cachedSystemState?.nativeResolution,
+            overrideResolution = override
+        )
+    }
+
+    suspend fun applyRenderResolution(scale: Float): CommandResult = withContext(Dispatchers.IO) {
+        val info = readWmSize()
+        val physW = info.physicalWidth
+        val physH = info.physicalHeight
+        if (physW == 0 || physH == 0) {
+            return@withContext CommandResult(
+                command = "wm size",
+                stdout = "",
+                stderr = "Could not query the native panel resolution via 'wm size'.",
+                exitCode = 1,
+                isSuccess = false
+            )
+        }
+
+        val cmd = if (scale >= 0.99f) {
+            "wm size reset"
+        } else {
+            val w = ((physW * scale) / 2.0).roundToInt() * 2
+            val h = ((physH * scale) / 2.0).roundToInt() * 2
+            "wm size ${w}x${h}"
+        }
+        val res = ShellEngine.exec(cmd)
+
+        if (res.isSuccess) {
+            val after = readWmSize()
+            val targetOverride = if (scale >= 0.99f) null else {
+                val w = ((physW * scale) / 2.0).roundToInt() * 2
+                val h = ((physH * scale) / 2.0).roundToInt() * 2
+                w to h
+            }
+            val verified = after.overrideWidth == targetOverride?.first && after.overrideHeight == targetOverride?.second
+            if (verified) {
+                updateResolutionState(info.physicalWidth to info.physicalHeight, targetOverride)
+                CommandResult(
+                    command = cmd,
+                    stdout = if (targetOverride == null) {
+                        "Resolution reset to native ${info.physicalWidth}x${info.physicalHeight} (override cleared)."
+                    } else {
+                        "Render resolution overridden: ${info.physicalWidth}x${info.physicalHeight} → ${targetOverride.first}x${targetOverride.second} (${String.format(java.util.Locale.US, "%.0f", scale * 100)}%)."
+                    },
+                    stderr = "",
+                    exitCode = 0,
+                    isSuccess = true
+                )
+            } else {
+                CommandResult(
+                    command = cmd,
+                    stdout = "",
+                    stderr = "SurfaceFlinger accepted the command but the override was not applied (OEM-guarded panel?).",
+                    exitCode = 1,
+                    isSuccess = false
+                )
+            }
+        } else {
+            res
+        }
+    }
+
+    data class WmSizeInfo(
+        val physicalWidth: Int = 0,
+        val physicalHeight: Int = 0,
+        val overrideWidth: Int? = null,
+        val overrideHeight: Int? = null
+    )
+
+    suspend fun readWmSize(): WmSizeInfo = withContext(Dispatchers.IO) {
+        val res = ShellEngine.exec("wm size", timeoutMs = 10000L)
+        val findSize: (String) -> Pair<Int, Int>? = { line ->
+            Regex("""(\d+)\s*x\s*(\d+)""").find(line)?.let { m ->
+                val w = m.groupValues[1].toIntOrNull()
+                val h = m.groupValues[2].toIntOrNull()
+                if (w != null && h != null) w to h else null
+            }
+        }
+        val native = res.stdout.lineSequence()
+            .firstOrNull { it.contains("Physical size", true) }
+            ?.let(findSize)
+        val override = res.stdout.lineSequence()
+            .firstOrNull { it.contains("Override size", true) }
+            ?.let(findSize)
+        WmSizeInfo(
+            physicalWidth = native?.first ?: 0,
+            physicalHeight = native?.second ?: 0,
+            overrideWidth = override?.first,
+            overrideHeight = override?.second
+        )
+    }
+
     suspend fun restoreSystemDefaults(context: Context? = null): CommandResult = withContext(Dispatchers.IO) {
         val results = mutableListOf<String>()
 
@@ -463,7 +700,23 @@ object RyTuneXDeepEngine {
         ShellEngine.exec("device_config delete activity_manager max_phantom_processes 2>/dev/null; settings delete global settings_enable_monitor_phantom_procs 2>/dev/null; device_config delete activity_manager max_error_dialogs 2>/dev/null")
         results.add("Phantom Processes: Reverted to default limit")
 
-        // 12. Force reload system state
+        // 12. Revert extra efficiency setters
+        setHwOverlaysDisabled(false)
+        setCachedAppFreezer(true)
+        setNetworkStatsCollection(true)
+        setAdaptiveBattery(true)
+        setWifiScanThrottle(true)
+        setAppStandby(true)
+        setStayAwakeCharging(false)
+        setStickyBatterySaver(false)
+        setLowPowerTriggerLevel(null)
+        results.add("Efficiency toggles: Reverted")
+
+        // 13. Clear render resolution override
+        ShellEngine.exec("wm size reset 2>/dev/null")
+        results.add("Render Resolution: Native")
+
+        // 14. Read back the full system state
         readCurrentSystemState(forceRefresh = true)
 
         CommandResult(
