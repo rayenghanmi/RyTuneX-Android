@@ -43,6 +43,7 @@ import com.rayenghanmi.rytunex.engine.AppIconManager
 import com.rayenghanmi.rytunex.engine.DebloatAction
 import com.rayenghanmi.rytunex.engine.SettingsManager
 import com.rayenghanmi.rytunex.engine.UadDatabaseManager
+import com.rayenghanmi.rytunex.ui.components.AppOpsSheet
 import com.rayenghanmi.rytunex.model.DebloatApp
 import com.rayenghanmi.rytunex.model.UadRecommendation
 import com.rayenghanmi.rytunex.theme.SemanticGreen
@@ -131,6 +132,7 @@ fun DebloatScreen(
     var activeFilter by remember { mutableStateOf("recommended") }
 
     var inspectingApp by remember { mutableStateOf<DebloatApp?>(null) }
+    var appOpsTargetApp by remember { mutableStateOf<DebloatApp?>(null) }
     var pendingBatchConfirmAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     var pendingBatchConfirmTitle by remember { mutableStateOf("") }
     var pendingBatchConfirmMessage by remember { mutableStateOf("") }
@@ -763,7 +765,8 @@ fun DebloatScreen(
                             app = app,
                             isSelected = isSelected,
                             onToggleSelect = onToggleSelect,
-                            onClickInspect = onClickInspect
+                            onClickInspect = onClickInspect,
+                            onOpenAppOps = { target -> appOpsTargetApp = target }
                         )
                     }
                 }
@@ -1071,6 +1074,26 @@ fun DebloatScreen(
                             color = MaterialTheme.colorScheme.error
                         )
                     }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                    OutlinedButton(
+                        onClick = {
+                            val target = app
+                            inspectingApp = null
+                            appOpsTargetApp = target
+                        },
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Security,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("AppOps & Background Permissions", fontWeight = FontWeight.SemiBold)
+                    }
                 }
             },
             confirmButton = {
@@ -1187,6 +1210,14 @@ fun DebloatScreen(
                     }
                 }
             }
+        )
+    }
+
+    appOpsTargetApp?.let { app ->
+        AppOpsSheet(
+            app = app,
+            onDismiss = { appOpsTargetApp = null },
+            onLogUpdate = onLogUpdate
         )
     }
 
@@ -1674,7 +1705,8 @@ private fun DebloatAppCard(
     app: DebloatApp,
     isSelected: Boolean,
     onToggleSelect: (String, Boolean) -> Unit,
-    onClickInspect: (DebloatApp) -> Unit
+    onClickInspect: (DebloatApp) -> Unit,
+    onOpenAppOps: (DebloatApp) -> Unit
 ) {
     val containerColor = if (isSelected) {
         MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f)
@@ -1797,6 +1829,18 @@ private fun DebloatAppCard(
                         }
                     }
                 }
+            }
+
+            IconButton(
+                onClick = { onOpenAppOps(app) },
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Security,
+                    contentDescription = "AppOps Permissions",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
             }
 
             Icon(
