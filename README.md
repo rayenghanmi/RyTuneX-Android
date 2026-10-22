@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/12bf0f27-463e-4b11-bdd5-ef6221a4ff0d" alt="RyTuneX Logo" width="128" height="128" />
+  <img src="https://github.com/user-attachments/assets/578259f2-e277-4cfa-9f77-ea2ebdaa69cb" alt="RyTuneX Logo" width="128" height="128" />
 </p>
 
 <h1 align="center">RyTuneX for Android</h1>
