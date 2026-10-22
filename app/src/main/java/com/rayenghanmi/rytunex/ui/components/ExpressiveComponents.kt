@@ -18,8 +18,17 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.BrightnessAuto
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.DarkMode
+import androidx.compose.material.icons.rounded.DesktopWindows
+import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.LightMode
+import androidx.compose.material.icons.rounded.OpenInNew
+import androidx.compose.material.icons.rounded.Person
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,6 +53,7 @@ import com.rayenghanmi.rytunex.theme.AccentColor
 import com.rayenghanmi.rytunex.theme.AppThemeMode
 import com.rayenghanmi.rytunex.theme.RyTuneXLogoColor
 import com.rayenghanmi.rytunex.theme.accentSeed
+import kotlinx.coroutines.launch
 
 // Card hierarchy position for grouped list items with morphing corners.
 enum class SettingsCardPosition {
@@ -139,7 +149,8 @@ fun MaterialSettingsCard(
         ) {
             if (icon != null) {
                 Surface(
-                    shape = CircleShape,
+                    // Per-element M3E shape: stable pick from the shape family via the row title
+                    shape = remember(title) { m3eShapeFor(title) },
                     color = MaterialTheme.colorScheme.primaryContainer,
                     modifier = Modifier.size(38.dp)
                 ) {
@@ -235,7 +246,8 @@ fun MaterialSettingsSwitchCard(
         ) {
             if (icon != null) {
                 Surface(
-                    shape = CircleShape,
+                    // Per-element M3E shape: stable pick from the shape family via the row title
+                    shape = remember(title) { m3eShapeFor(title) },
                     color = MaterialTheme.colorScheme.primaryContainer,
                     modifier = Modifier.size(38.dp)
                 ) {
@@ -643,7 +655,8 @@ fun GoogleSettingsRow(
     ) {
         if (icon != null) {
             Surface(
-                shape = CircleShape,
+                // Per-element M3E shape: stable pick from the shape family via the row title
+                shape = remember(title) { m3eShapeFor(title) },
                 color = iconContainerColor,
                 modifier = Modifier
                     .padding(top = 2.dp)
@@ -713,7 +726,8 @@ fun GoogleSettingsRow(
     }
 }
 
-// Telemetry metric tile.
+// Telemetry metric tile. animatedNumber (with printf pattern + suffix) makes the
+// value tick along a spring instead of snapping, matching live sample updates.
 @Composable
 fun HardwareMetricTile(
     title: String,
@@ -722,8 +736,26 @@ fun HardwareMetricTile(
     accentColor: Color = MaterialTheme.colorScheme.primary,
     progress: Float? = null,
     icon: ImageVector? = null,
+    animatedNumber: Float? = null,
+    animatedFormat: String = "%.0f",
+    animatedSuffix: String = "",
     modifier: Modifier = Modifier
 ) {
+    val counter = remember { Animatable(0f) }
+    LaunchedEffect(animatedNumber) {
+        if (animatedNumber != null && counter.value != animatedNumber) {
+            counter.animateTo(
+                animatedNumber,
+                spring(dampingRatio = 0.9f, stiffness = Spring.StiffnessMediumLow)
+            )
+        }
+    }
+    val displayValue = if (animatedNumber != null) {
+        String.format(java.util.Locale.US, animatedFormat, counter.value) + animatedSuffix
+    } else {
+        primaryValue
+    }
+
     Card(
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
@@ -751,17 +783,25 @@ fun HardwareMetricTile(
                         overflow = TextOverflow.Ellipsis
                     )
                     if (icon != null) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            tint = accentColor,
-                            modifier = Modifier.size(16.dp)
-                        )
+                        Surface(
+                            shape = BloomShape(lobes = 4, depth = 0.3f),
+                            color = accentColor.copy(alpha = 0.14f),
+                            modifier = Modifier.size(26.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = null,
+                                    tint = accentColor,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                            }
+                        }
                     }
                 }
 
                 Text(
-                    text = primaryValue,
+                    text = displayValue,
                     color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
@@ -772,15 +812,11 @@ fun HardwareMetricTile(
 
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 if (progress != null) {
-                    LinearProgressIndicator(
-                        progress = { progress.coerceIn(0f, 1f) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(8.dp)
-                            .clip(RoundedCornerShape(4.dp)),
+                    WavyLinearProgress(
+                        progress = progress,
+                        modifier = Modifier.fillMaxWidth(),
                         color = accentColor,
-                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        strokeCap = StrokeCap.Round
+                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
                     )
                 } else {
                     Spacer(modifier = Modifier.height(8.dp))
@@ -882,13 +918,21 @@ fun FloatingTopPillHeader(
     ) {
         AnimatedVisibility(
             visible = visible,
-            enter = fadeIn(animationSpec = tween(220)) + slideInVertically(
+            // Slide + scale only: an animated alpha < 1 flattens the elevation shadow into a
+            // hard-edged layer on Android, so the elevated pill must never fade as a whole.
+            enter = slideInVertically(
                 initialOffsetY = { -it },
                 animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = Spring.DampingRatioLowBouncy)
+            ) + scaleIn(
+                initialScale = 0.88f,
+                animationSpec = spring(stiffness = Spring.StiffnessMedium, dampingRatio = Spring.DampingRatioNoBouncy)
             ),
-            exit = fadeOut(animationSpec = tween(180)) + slideOutVertically(
+            exit = slideOutVertically(
                 targetOffsetY = { -it },
-                animationSpec = spring(stiffness = Spring.StiffnessMediumLow)
+                animationSpec = tween(220, easing = EmphasizedAccelerateEasing)
+            ) + scaleOut(
+                targetScale = 0.88f,
+                animationSpec = tween(220, easing = EmphasizedAccelerateEasing)
             )
         ) {
             Surface(
@@ -990,6 +1034,7 @@ fun RyTuneXBrandText(
 }
 
 // Alert dialog with comfortable edge margins instead of touching the borders.
+// Enters with an M3E bouncy scale pop.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExpressiveAlertDialog(
@@ -1008,13 +1053,48 @@ fun ExpressiveAlertDialog(
     tonalElevation: Dp = AlertDialogDefaults.TonalElevation,
     properties: DialogProperties = DialogProperties(usePlatformDefaultWidth = false)
 ) {
+    val scaleAnim = remember { Animatable(0.9f) }
+    val alphaAnim = remember { Animatable(0f) }
+    var dismissing by remember { mutableStateOf(false) }
+
+    // Entrance: bouncy scale pop + quick fade-in
+    LaunchedEffect(Unit) {
+        launch {
+            scaleAnim.animateTo(
+                targetValue = 1f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessMediumLow
+                )
+            )
+        }
+        alphaAnim.animateTo(1f, tween(130))
+    }
+
+    // Exit (scrim tap / back press): emphasized fade/scale-out, then dismiss for real.
+    // Button dismissals stay instant because the caller removes the dialog directly.
+    LaunchedEffect(dismissing) {
+        if (dismissing) {
+            launch {
+                scaleAnim.animateTo(0.92f, tween(150, easing = EmphasizedAccelerateEasing))
+            }
+            alphaAnim.animateTo(0f, tween(150, easing = EmphasizedAccelerateEasing))
+            onDismissRequest()
+        }
+    }
     AlertDialog(
-        onDismissRequest = onDismissRequest,
+        onDismissRequest = { if (!dismissing) dismissing = true },
         confirmButton = confirmButton,
         modifier = modifier
-            .padding(horizontal = 24.dp)
+            // Vertical headroom so the bouncy scale pop never clips against the dialog window
+            .padding(horizontal = 24.dp, vertical = 28.dp)
             .widthIn(min = 280.dp, max = 560.dp)
-            .fillMaxWidth(),
+            .fillMaxWidth()
+            .graphicsLayer {
+                scaleX = scaleAnim.value
+                scaleY = scaleAnim.value
+                alpha = alphaAnim.value
+            },
         dismissButton = dismissButton,
         icon = icon,
         title = title,
@@ -1027,6 +1107,102 @@ fun ExpressiveAlertDialog(
         tonalElevation = tonalElevation,
         properties = properties
     )
+}
+
+// Compact about content for the RyTuneX dialogs: identity and links only,
+// no marketing copy. Rows use large, comfortable text.
+@Composable
+fun AboutRyTuneXContent() {
+    val context = LocalContext.current
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        AboutLinkRow(
+            icon = Icons.Rounded.Person,
+            label = "Rayen Ghanmi",
+            onClick = { openUrl(context, "https://github.com/RayenGhanmi") }
+        )
+        AboutLinkRow(
+            icon = Icons.Rounded.Language,
+            label = "Website",
+            onClick = { openUrl(context, "https://rayenghanmi.github.io/rytunex") }
+        )
+        AboutLinkRow(
+            icon = Icons.Rounded.Code,
+            label = "GitHub",
+            onClick = { openUrl(context, "https://github.com/RayenGhanmi/RyTuneX") }
+        )
+        AboutLinkRow(
+            icon = Icons.Rounded.DesktopWindows,
+            label = "RyTuneX for Windows",
+            onClick = { openUrl(context, "https://github.com/RayenGhanmi/RyTuneX/releases") }
+        )
+        // One-line answer to "what is this app" - sits directly under the version
+        Text(
+            text = "Advanced System Tuning Engine for Android",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+        // License stays visually quiet - same muted footer style, just tappable
+        Text(
+            text = "Open Source • AGPL-3.0",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { openUrl(context, "https://www.gnu.org/licenses/agpl-3.0.html") }
+        )
+    }
+}
+
+private fun openUrl(context: Context, url: String) {
+    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+}
+
+@Composable
+private fun AboutLinkRow(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(22.dp)
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f)
+            )
+            Icon(
+                imageVector = Icons.Rounded.OpenInNew,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(16.dp)
+            )
+        }
+    }
 }
 
 

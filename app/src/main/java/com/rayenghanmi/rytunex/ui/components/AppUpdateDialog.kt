@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rayenghanmi.rytunex.engine.AppReleaseInfo
@@ -280,21 +281,32 @@ fun AppUpdateDialog(
                             onClick = {},
                             enabled = false,
                             shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 8.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                disabledContainerColor = MaterialTheme.colorScheme.primary,
+                                disabledContentColor = MaterialTheme.colorScheme.onPrimary
+                            ),
                             modifier = Modifier.weight(1.3f)
                         ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(14.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.onPrimary
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "${state.progressPercent}%",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1
-                            )
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                WavyLinearProgress(
+                                    progress = state.progressPercent / 100f,
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    trackColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f),
+                                    stroke = 4.dp,
+                                    amplitude = 2.dp,
+                                    wavelength = 12.dp
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "${state.progressPercent}%",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
                         }
                     }
                     is DownloadState.Completed -> {
