@@ -33,7 +33,7 @@ import androidx.compose.ui.zIndex
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.AnnotatedString
+
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -287,7 +287,7 @@ fun DashboardScreen(
                             )
                         }
                         Text(
-                            text = buildRyTuneXAnnotatedString("RyTuneX applies Android system optimizations without root privileges using Shizuku wireless debugging."),
+                            text = "RyTuneX applies Android system optimizations without root privileges using Shizuku wireless debugging.",
                             style = MaterialTheme.typography.bodyMedium
                         )
                         Button(
@@ -494,7 +494,7 @@ fun DashboardScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Text(
-                                    text = if (profile.title.contains("RyTuneX")) buildRyTuneXAnnotatedString(profile.title) else AnnotatedString(profile.title),
+                                    text = profile.title,
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = titleColor,

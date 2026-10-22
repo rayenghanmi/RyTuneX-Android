@@ -48,7 +48,6 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.text.AnnotatedString
 import com.rayenghanmi.rytunex.theme.AccentColor
 import com.rayenghanmi.rytunex.theme.AppThemeMode
 import com.rayenghanmi.rytunex.theme.RyTuneXLogoColor
@@ -165,24 +164,15 @@ fun MaterialSettingsCard(
                 }
             }
             Column(modifier = Modifier.weight(1f)) {
-                if (title.contains("RyTuneX")) {
-                    Text(
-                        text = buildRyTuneXAnnotatedString(title),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                } else {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold
+                )
                 if (description != null) {
                     Text(
-                        text = if (description.contains("RyTuneX")) buildRyTuneXAnnotatedString(description) else AnnotatedString(description),
+                        text = description,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -262,24 +252,15 @@ fun MaterialSettingsSwitchCard(
                 }
             }
             Column(modifier = Modifier.weight(1f)) {
-                if (title.contains("RyTuneX")) {
-                    Text(
-                        text = buildRyTuneXAnnotatedString(title),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                } else {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold
+                )
                 if (description != null) {
                     Text(
-                        text = if (description.contains("RyTuneX")) buildRyTuneXAnnotatedString(description) else AnnotatedString(description),
+                        text = description,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -613,7 +594,7 @@ fun GoogleSectionHeader(
     color: Color = MaterialTheme.colorScheme.primary
 ) {
     Text(
-        text = if (title.contains("RyTuneX")) buildRyTuneXAnnotatedString(title) else AnnotatedString(title),
+        text = title,
         style = MaterialTheme.typography.titleSmall,
         color = color,
         fontWeight = FontWeight.Bold,
@@ -682,23 +663,13 @@ fun GoogleSettingsRow(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (title.contains("RyTuneX")) {
-                    Text(
-                        text = buildRyTuneXAnnotatedString(title),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.weight(1f, fill = false)
-                    )
-                } else {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.weight(1f, fill = false)
-                    )
-                }
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
                 if (trailingContent != null) {
                     Spacer(modifier = Modifier.width(8.dp))
                     trailingContent()
@@ -707,7 +678,7 @@ fun GoogleSettingsRow(
 
             if (subtitle != null) {
                 Text(
-                    text = if (subtitle.contains("RyTuneX")) buildRyTuneXAnnotatedString(subtitle) else AnnotatedString(subtitle),
+                    text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -966,7 +937,7 @@ fun FloatingTopPillHeader(
                         titleContent()
                     } else if (title != null) {
                         Text(
-                            text = if (title.contains("RyTuneX")) buildRyTuneXAnnotatedString(title) else AnnotatedString(title),
+                            text = title,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
@@ -977,32 +948,6 @@ fun FloatingTopPillHeader(
 
                     trailingContent?.invoke()
                 }
-            }
-        }
-    }
-}
-
-// Renders the trailing "X" of "RyTuneX" in the logo pink (#FE6093).
-@Composable
-fun buildRyTuneXAnnotatedString(
-    text: String,
-    xColor: Color = RyTuneXLogoColor
-): AnnotatedString {
-    return remember(text, xColor) {
-        buildAnnotatedString {
-            if (text.contains("RyTuneX")) {
-                val parts = text.split("RyTuneX")
-                parts.forEachIndexed { index, part ->
-                    append(part)
-                    if (index < parts.size - 1) {
-                        append("RyTune")
-                        withStyle(SpanStyle(color = xColor)) {
-                            append("X")
-                        }
-                    }
-                }
-            } else {
-                append(text)
             }
         }
     }

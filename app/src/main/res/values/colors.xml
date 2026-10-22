@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#FE6094</color>
-    <color name="rytunex_primary">#FF3B7A</color>
-    <color name="rytunex_primary_variant">#D23C72</color>
+    <color name="ic_launcher_background">#FB3088</color>
+    <color name="rytunex_primary">#FB3088</color>
+    <color name="rytunex_primary_variant">#B21557</color>
     <color name="rytunex_secondary">#9C27B0</color>
     <color name="rytunex_surface">#161922</color>
     <color name="rytunex_background">#0D0F14</color>

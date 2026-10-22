@@ -2,11 +2,11 @@ package com.rayenghanmi.rytunex.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Signature accent extracted from the RyTuneX logo: #FE6093
+// Signature accent extracted from the RyTuneX logo: #FB3088
 
-val RyTuneXLogoColor = Color(0xFFFE6093)
+val RyTuneXLogoColor = Color(0xFFFB3088)
 val RyTuneXAccent = RyTuneXLogoColor
-val RyTuneXLightAccent = Color(0xFFB81D58)
+val RyTuneXLightAccent = Color(0xFFB21557)
 
 val SemanticGreen = Color(0xFF4CAF50)                // Safe / Active
 val SemanticBlue = Color(0xFF2196F3)                 // Advanced / Info

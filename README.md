@@ -10,7 +10,7 @@
   </p>
 
   <p align="center">
-    <img src="https://img.shields.io/badge/Release-v1.0.2-FE6093?style=for-the-badge&logo=github&logoColor=white" alt="Version 1.0.2" />
+    <img src="https://img.shields.io/badge/Release-v1.0.2-FB3088?style=for-the-badge&logo=github&logoColor=white" alt="Version 1.0.2" />
     <img src="https://img.shields.io/badge/Android-8.0%2B%20to%2016-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android 8.0+" />
     <img src="https://img.shields.io/badge/Kotlin-Jetpack_Compose-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white" alt="Kotlin Jetpack Compose" />
     <img src="https://img.shields.io/badge/Shizuku-UID_2000-008080?style=for-the-badge" alt="Shizuku UID 2000" />
@@ -63,7 +63,7 @@
 
 ## 🏗️ Technical Architecture
 
-* **UI Layer**: Native Kotlin & Jetpack Compose implementing Google's **Material 3 Expressive** design system with the signature RyTuneX accent (`#FE6093`).
+* **UI Layer**: Native Kotlin & Jetpack Compose implementing Google's **Material 3 Expressive** design system with the signature RyTuneX accent (`#FB3088`).
 * **Core Engine**: `ShellEngine`, `RyTuneXDeepEngine`, `AdaptiveOptimizer`, `AdaptiveDeviceInspector`, and `UadDatabaseManager` execute asynchronously on `Dispatchers.IO` with zero main-thread blocking.
 * **Privilege Model**: Stateless IPC via Shizuku (`ADB UID 2000`). No persistent background services or wake-locks.
 
