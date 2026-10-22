@@ -26,6 +26,10 @@ import com.rayenghanmi.rytunex.engine.AppUpdateManager
 import com.rayenghanmi.rytunex.engine.DebloatAction
 import com.rayenghanmi.rytunex.engine.RyTuneXDeepEngine
 import com.rayenghanmi.rytunex.engine.SettingsManager
+import com.rayenghanmi.rytunex.ui.components.Button
+import com.rayenghanmi.rytunex.ui.components.FilledTonalButton
+import com.rayenghanmi.rytunex.ui.components.OutlinedButton
+import com.rayenghanmi.rytunex.ui.components.TextButton
 import com.rayenghanmi.rytunex.engine.UadDatabaseManager
 import com.rayenghanmi.rytunex.theme.SemanticGreen
 import com.rayenghanmi.rytunex.theme.SemanticRed
@@ -242,7 +246,7 @@ fun SettingsScreen(
                             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                         ) {
                             if (isUpdatingUad) {
-                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                WavyLoadingIndicator(indicatorSize = 16.dp, stroke = 2.dp, amplitude = 1.dp)
                             } else {
                                 Text("Update", fontWeight = FontWeight.Bold)
                             }
@@ -352,7 +356,7 @@ fun SettingsScreen(
                             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                         ) {
                             if (isCheckingUpdates) {
-                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                WavyLoadingIndicator(indicatorSize = 16.dp, stroke = 2.dp, amplitude = 1.dp)
                             } else {
                                 Text("Check", fontWeight = FontWeight.Bold)
                             }
@@ -432,58 +436,14 @@ fun SettingsScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Version ${com.rayenghanmi.rytunex.BuildConfig.VERSION_NAME} • Advanced Tuning Engine",
-                            style = MaterialTheme.typography.labelMedium,
+                            text = "Version ${com.rayenghanmi.rytunex.BuildConfig.VERSION_NAME}",
+                            style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
                 },
-                text = {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        Text(
-                            text = buildRyTuneXAnnotatedString("RyTuneX is an advanced, open-source tuning engine for power users and gamers. Maximize performance, eliminate latency, and manage deeply embedded system policies natively. Engineered for absolute transparency and real-world gains, RyTuneX delivers granular, hardware-level control with zero persistent background daemons and zero battery drain."),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(14.dp),
-                                verticalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Text(
-                                    text = "ARCHITECTURE & ENGINE",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                Text("• Design System: Material Design 3 (Dynamic Color)", style = MaterialTheme.typography.bodySmall)
-                                Text("• Privileged Service: Shizuku (ADB UID 2000)", style = MaterialTheme.typography.bodySmall)
-                                Text("• Debloater: Universal Android Debloater (UAD Next-Gen)", style = MaterialTheme.typography.bodySmall)
-                                Text("• Target: Android 8.0 – 16+ (API 26–36)", style = MaterialTheme.typography.bodySmall)
-                                Text("• PC Edition: RyTuneX for Windows 10 & 11", style = MaterialTheme.typography.bodySmall)
-                                Text("• Website: rayenghanmi.github.io/rytunex", style = MaterialTheme.typography.bodySmall)
-                                Text("• Status: ${if (isShizukuReady) "Authorized (UID 2000)" else "No Privileges"}", style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
-
-                        Text(
-                            text = "Created by Rayen Ghanmi • Open-Source Tuning Engine (AGPL-3.0)",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                },
+                text = { AboutRyTuneXContent() },
                 confirmButton = {
                     FilledTonalButton(
                         onClick = { showAboutDialog = false },

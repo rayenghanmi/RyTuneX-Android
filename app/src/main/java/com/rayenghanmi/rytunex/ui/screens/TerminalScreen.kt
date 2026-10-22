@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.sp
 import com.rayenghanmi.rytunex.engine.ShellEngine
 import com.rayenghanmi.rytunex.theme.SemanticGreen
 import com.rayenghanmi.rytunex.ui.components.GoogleSectionHeader
+import com.rayenghanmi.rytunex.ui.components.WavyLoadingIndicator
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -272,9 +273,10 @@ fun TerminalScreen(
                         modifier = Modifier.size(40.dp)
                     ) {
                         if (isExecuting) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp,
+                            WavyLoadingIndicator(
+                                indicatorSize = 18.dp,
+                                stroke = 2.dp,
+                                amplitude = 1.dp,
                                 color = MaterialTheme.colorScheme.onPrimary
                             )
                         } else {

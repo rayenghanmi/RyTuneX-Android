@@ -31,6 +31,8 @@ import com.rayenghanmi.rytunex.engine.AdaptiveDeviceInspector
 import com.rayenghanmi.rytunex.engine.AppIconManager
 import com.rayenghanmi.rytunex.engine.RyTuneXDeepEngine
 import com.rayenghanmi.rytunex.engine.UadDatabaseManager
+import com.rayenghanmi.rytunex.ui.components.EmphasizedDecelerateEasing
+import com.rayenghanmi.rytunex.ui.components.EmphasizedEasing
 import com.rayenghanmi.rytunex.ui.screens.DashboardScreen
 import com.rayenghanmi.rytunex.ui.screens.DebloatScreen
 import com.rayenghanmi.rytunex.ui.screens.OptimizationsScreen
@@ -88,12 +90,30 @@ fun RyTuneXApp(
         color = MaterialTheme.colorScheme.surface
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
+            // Direction of travel between screens: slides incoming content from the right/left
+            val lastScreenOrdinal = remember { mutableIntStateOf(currentScreen.ordinal) }
+            val navDirection = remember(currentScreen) {
+                val dir = if (currentScreen.ordinal >= lastScreenOrdinal.intValue) 1f else -1f
+                lastScreenOrdinal.intValue = currentScreen.ordinal
+                dir
+            }
             preloadedScreens.forEach { screen ->
                 val isCurrent = screen == currentScreen
                 val alpha by animateFloatAsState(
                     targetValue = if (isCurrent) 1f else 0f,
-                    animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+                    animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
                     label = "screenAlpha_${screen.name}"
+                )
+                // Emphasized glide for the incoming screen, subtle push-out for the outgoing one
+                val slideIn by animateFloatAsState(
+                    targetValue = if (isCurrent) 1f else 0f,
+                    animationSpec = tween(durationMillis = 380, easing = EmphasizedDecelerateEasing),
+                    label = "screenSlide_${screen.name}"
+                )
+                val screenScale by animateFloatAsState(
+                    targetValue = if (isCurrent) 1f else 0.96f,
+                    animationSpec = tween(durationMillis = 380, easing = EmphasizedEasing),
+                    label = "screenScale_${screen.name}"
                 )
 
                 Box(
@@ -101,8 +121,15 @@ fun RyTuneXApp(
                         .fillMaxSize()
                         .graphicsLayer {
                             this.alpha = alpha
+                            scaleX = screenScale
+                            scaleY = screenScale
+                            val slide = if (isCurrent) {
+                                (1f - slideIn) * 28f * navDirection
+                            } else {
+                                (1f - slideIn) * -14f * navDirection
+                            }
                             // Park hidden screens off-screen to avoid touch intercept and draw overhead
-                            translationX = if (isCurrent || alpha > 0.01f) 0f else 100000f
+                            translationX = if (isCurrent || alpha > 0.01f) slide else 100000f
                         }
                         .then(if (isCurrent) Modifier.zIndex(1f) else Modifier.zIndex(0f))
                 ) {
@@ -245,6 +272,26 @@ fun RyTuneXApp(
                             label = "navIconScale_${screen.name}"
                         )
 
+                        // Selection hop: the icon jogs upward on the bouncy spring and settles
+                        val iconJog = remember { Animatable(0f) }
+                        LaunchedEffect(isSelected) {
+                            if (isSelected) {
+                                iconJog.animateTo(
+                                    -1f,
+                                    spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMedium)
+                                )
+                                iconJog.animateTo(
+                                    0f,
+                                    spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow)
+                                )
+                            } else {
+                                iconJog.animateTo(
+                                    0f,
+                                    spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow)
+                                )
+                            }
+                        }
+
                         val iconTint by animateColorAsState(
                             targetValue = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                             animationSpec = tween(180),
@@ -304,6 +351,7 @@ fun RyTuneXApp(
                                                 .graphicsLayer {
                                                     scaleX = iconScale
                                                     scaleY = iconScale
+                                                    translationY = iconJog.value * 3.dp.toPx()
                                                 }
                                         )
                                     }

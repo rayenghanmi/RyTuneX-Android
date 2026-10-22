@@ -2,14 +2,21 @@ package com.rayenghanmi.rytunex.ui.screens
 
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -41,6 +48,9 @@ import com.rayenghanmi.rytunex.model.ProfileDeviceSpec
 import com.rayenghanmi.rytunex.model.ProfileType
 import com.rayenghanmi.rytunex.theme.SemanticGreen
 import com.rayenghanmi.rytunex.theme.SemanticRed
+import com.rayenghanmi.rytunex.ui.components.Button
+import com.rayenghanmi.rytunex.ui.components.FilledTonalButton
+import com.rayenghanmi.rytunex.ui.components.TextButton
 import com.rayenghanmi.rytunex.ui.components.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -95,8 +105,12 @@ fun DashboardScreen(
             }
             val res = AdaptiveOptimizer.applyProfile(context, profile, deviceInfo)
             executingProfile = null
-            activeProfile = profile
             isLastActionSuccess = res.isSuccess
+            // Only claim the profile as active when the shell work actually succeeded;
+            // a failed run (e.g. Shizuku not authorized) must leave the previous card active
+            if (res.isSuccess) {
+                activeProfile = profile
+            }
 
             val feedbackMsg = if (res.isSuccess) {
                 when (profile) {
@@ -207,7 +221,7 @@ fun DashboardScreen(
                         horizontalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         Surface(
-                            shape = CircleShape,
+                            shape = BloomShape(lobes = 12, depth = 0.14f),
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(44.dp)
                         ) {
@@ -359,6 +373,8 @@ fun DashboardScreen(
                     subtitle = "${deviceInfo.soc.socModel} • ${deviceInfo.soc.freqFormatted}",
                     progress = deviceInfo.soc.cpuLoadPercent / 100f,
                     icon = Icons.Rounded.Memory,
+                    animatedNumber = deviceInfo.soc.cpuLoadPercent,
+                    animatedSuffix = "%",
                     accentColor = if (deviceInfo.soc.cpuLoadPercent > 75) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                     modifier = Modifier
                         .weight(1f)
@@ -370,6 +386,8 @@ fun DashboardScreen(
                     subtitle = "${deviceInfo.memory.usedGbFormatted} / ${deviceInfo.memory.totalGbFormatted}",
                     progress = deviceInfo.memory.usedPercent / 100f,
                     icon = Icons.Rounded.Storage,
+                    animatedNumber = deviceInfo.memory.usedPercent,
+                    animatedSuffix = "% Used",
                     accentColor = if (deviceInfo.memory.usedPercent > 85) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                     modifier = Modifier
                         .weight(1f)
@@ -394,6 +412,8 @@ fun DashboardScreen(
                     subtitle = "$tempFormatted • ${deviceInfo.battery.health}",
                     progress = deviceInfo.battery.level / 100f,
                     icon = Icons.Rounded.BatteryChargingFull,
+                    animatedNumber = deviceInfo.battery.level.toFloat(),
+                    animatedSuffix = "%",
                     accentColor = if (deviceInfo.battery.tempCelsius > 42) MaterialTheme.colorScheme.error else SemanticGreen,
                     modifier = Modifier
                         .weight(1f)
@@ -407,6 +427,8 @@ fun DashboardScreen(
                     subtitle = "${deviceInfo.display.width}x${deviceInfo.display.height} px",
                     progress = displayProgress,
                     icon = Icons.Rounded.Speed,
+                    animatedNumber = deviceInfo.display.currentRefreshRate,
+                    animatedSuffix = " Hz",
                     accentColor = MaterialTheme.colorScheme.primary,
                     modifier = Modifier
                         .weight(1f)
@@ -422,21 +444,39 @@ fun DashboardScreen(
             ) {
                 GoogleSectionHeader(title = "HARDWARE-AWARE PROFILES")
                 if (isExecuting) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.primary
+                    WavyLoadingIndicator(
+                        indicatorSize = 20.dp,
+                        stroke = 2.5.dp,
+                        amplitude = 1.25.dp
                     )
                 }
             }
 
             ProfileType.entries.forEach { profile ->
                 val isSelected = activeProfile == profile
+                // Spring-morph the card between resting and selected colors (M3E)
+                val cardColor by animateColorAsState(
+                    targetValue = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer,
+                    animationSpec = spring(
+                        dampingRatio = 0.85f,
+                        stiffness = Spring.StiffnessMediumLow
+                    ),
+                    label = "profileCardColor"
+                )
+                val titleColor by animateColorAsState(
+                    targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                    animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow),
+                    label = "profileTitleColor"
+                )
+                val bodyColor by animateColorAsState(
+                    targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                    animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow),
+                    label = "profileBodyColor"
+                )
+                val palette = MaterialTheme.colorScheme
                 Card(
                     shape = RoundedCornerShape(22.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer
-                    ),
+                    colors = CardDefaults.cardColors(containerColor = cardColor),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -448,23 +488,57 @@ fun DashboardScreen(
                             modifier = Modifier.fillMaxWidth(),
                             verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
-                            Text(
-                                text = if (profile.title.contains("RyTuneX")) buildRyTuneXAnnotatedString(profile.title) else AnnotatedString(profile.title),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = if (profile.title.contains("RyTuneX")) buildRyTuneXAnnotatedString(profile.title) else AnnotatedString(profile.title),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = titleColor,
+                                    modifier = Modifier.weight(1f, fill = false)
+                                )
+                                // Pop-in badge beside the profile title
+                                AnimatedVisibility(
+                                    visible = isSelected,
+                                    enter = scaleIn(
+                                        animationSpec = spring(
+                                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                                            stiffness = Spring.StiffnessMedium
+                                        ),
+                                        initialScale = 0.5f
+                                    ) + fadeIn(animationSpec = tween(120)),
+                                    exit = fadeOut(animationSpec = tween(120)) + scaleOut(targetScale = 0.6f)
+                                ) {
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = palette.primary
+                                    ) {
+                                        Text(
+                                            text = "ACTIVE",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = palette.onPrimary,
+                                            softWrap = false,
+                                            maxLines = 1,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                        )
+                                    }
+                                }
+                            }
                             Text(
                                 text = profile.subtitle,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant
+                                color = bodyColor
                             )
                         }
 
                         Text(
                             text = profile.getDescription(profileSpec),
                             style = MaterialTheme.typography.bodySmall,
-                            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.9f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = bodyColor,
                             lineHeight = 16.sp
                         )
 
@@ -473,23 +547,16 @@ fun DashboardScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            if (isSelected) {
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = MaterialTheme.colorScheme.primary
-                                ) {
-                                    Text(
-                                        text = "ACTIVE",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onPrimary,
-                                        softWrap = false,
-                                        maxLines = 1,
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                                    )
-                                }
-                            }
-
+                            val btnContainer by animateColorAsState(
+                                targetValue = if (isSelected) palette.primaryContainer else palette.surfaceContainerHighest,
+                                animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow),
+                                label = "deployBtnContainer"
+                            )
+                            val btnContent by animateColorAsState(
+                                targetValue = if (isSelected) palette.onPrimaryContainer else palette.primary,
+                                animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow),
+                                label = "deployBtnContent"
+                            )
                             Button(
                                 onClick = {
                                     if (SettingsManager.confirmTweaks) {
@@ -501,16 +568,17 @@ fun DashboardScreen(
                                 enabled = executingProfile == null,
                                 shape = RoundedCornerShape(16.dp),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
-                                    contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary
+                                    containerColor = btnContainer,
+                                    contentColor = btnContent
                                 ),
                                 contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp)
                             ) {
                                 if (executingProfile == profile) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(16.dp),
-                                        strokeWidth = 2.dp,
-                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary
+                                    WavyLoadingIndicator(
+                                        indicatorSize = 16.dp,
+                                        stroke = 2.dp,
+                                        amplitude = 1.dp,
+                                        color = btnContent
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                 }
@@ -601,7 +669,7 @@ fun DashboardScreen(
                             contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp)
                         ) {
                             if (isCleaningStorage) {
-                                CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                                WavyLoadingIndicator(indicatorSize = 14.dp, stroke = 2.dp, amplitude = 1.dp)
                                 Spacer(modifier = Modifier.width(6.dp))
                             }
                             Text("Clean Storage", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, softWrap = false, maxLines = 1)
@@ -642,7 +710,7 @@ fun DashboardScreen(
                             contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp)
                         ) {
                             if (isTrimmingRam) {
-                                CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                                WavyLoadingIndicator(indicatorSize = 14.dp, stroke = 2.dp, amplitude = 1.dp)
                                 Spacer(modifier = Modifier.width(6.dp))
                             }
                             Text("Trim RAM", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, softWrap = false, maxLines = 1)
@@ -683,7 +751,7 @@ fun DashboardScreen(
                             contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp)
                         ) {
                             if (isTrimmingStorage) {
-                                CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                                WavyLoadingIndicator(indicatorSize = 14.dp, stroke = 2.dp, amplitude = 1.dp)
                                 Spacer(modifier = Modifier.width(6.dp))
                             }
                             Text("TRIM Flash", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, softWrap = false, maxLines = 1)
@@ -750,57 +818,14 @@ fun DashboardScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Version ${com.rayenghanmi.rytunex.BuildConfig.VERSION_NAME} • Advanced Tuning Engine",
-                            style = MaterialTheme.typography.labelMedium,
+                            text = "Version ${com.rayenghanmi.rytunex.BuildConfig.VERSION_NAME}",
+                            style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
                 },
-                text = {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        Text(
-                            text = buildRyTuneXAnnotatedString("RyTuneX is an advanced, open-source tuning engine for power users and gamers. Maximize performance, eliminate latency, and manage deeply embedded system policies natively. Engineered for absolute transparency and real-world gains, RyTuneX delivers granular, hardware-level control with zero persistent background daemons and zero battery drain."),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(14.dp),
-                                verticalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Text(
-                                    text = "ARCHITECTURE & ENGINE",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                Text("• Privileged Service: Shizuku (ADB UID 2000)", style = MaterialTheme.typography.bodySmall)
-                                Text("• Debloater: Universal Android Debloater (UAD Next-Gen)", style = MaterialTheme.typography.bodySmall)
-                                Text("• Target: Android 8.0 – 16+ (API 26–36)", style = MaterialTheme.typography.bodySmall)
-                                Text("• PC Edition: RyTuneX for Windows 10 & 11", style = MaterialTheme.typography.bodySmall)
-                                Text("• Website: rayenghanmi.github.io/rytunex", style = MaterialTheme.typography.bodySmall)
-                                Text("• Status: ${if (isShizukuReady) "Authorized (UID 2000)" else "No Privileges"}", style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
-
-                        Text(
-                            text = "Created by Rayen Ghanmi • Open-Source Tuning Engine (AGPL-3.0)",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                },
+                text = { AboutRyTuneXContent() },
                 confirmButton = {
                     FilledTonalButton(
                         onClick = { showAboutDialog = false },

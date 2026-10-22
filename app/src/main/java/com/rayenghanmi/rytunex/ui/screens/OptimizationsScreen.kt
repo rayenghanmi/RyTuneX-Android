@@ -5,6 +5,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -28,6 +29,10 @@ import com.rayenghanmi.rytunex.engine.RyTuneXDeepEngine
 import com.rayenghanmi.rytunex.engine.SettingsManager
 import com.rayenghanmi.rytunex.engine.SystemTuningState
 import com.rayenghanmi.rytunex.theme.SemanticGreen
+import com.rayenghanmi.rytunex.ui.components.Button
+import com.rayenghanmi.rytunex.ui.components.FilledTonalButton
+import com.rayenghanmi.rytunex.ui.components.OutlinedButton
+import com.rayenghanmi.rytunex.ui.components.TextButton
 import com.rayenghanmi.rytunex.ui.components.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -276,10 +281,11 @@ fun OptimizationsScreen(
 
                 IconButton(onClick = { reloadState() }) {
                     if (isLoadingState) {
-                        CircularProgressIndicator(
+                        WavyLoadingIndicator(
                             modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.primary
+                            indicatorSize = 20.dp,
+                            stroke = 2.dp,
+                            amplitude = 1.25.dp
                         )
                     } else {
                         Icon(
@@ -341,7 +347,7 @@ fun OptimizationsScreen(
                             selected = isCurrent,
                             onClick = { selectedHz = rate },
                             label = { Text("${rate.toInt()} Hz", fontWeight = FontWeight.SemiBold, softWrap = false, maxLines = 1) },
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(morphingChipCorner(isCurrent))
                         )
                     }
                 }
@@ -383,9 +389,10 @@ fun OptimizationsScreen(
                         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp)
                     ) {
                         if (isLockingHz) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                strokeWidth = 2.dp,
+                            WavyLoadingIndicator(
+                                indicatorSize = 16.dp,
+                                stroke = 2.dp,
+                                amplitude = 1.dp,
                                 color = MaterialTheme.colorScheme.onPrimary
                             )
                             Spacer(modifier = Modifier.width(6.dp))
@@ -423,9 +430,10 @@ fun OptimizationsScreen(
                         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp)
                     ) {
                         if (isResettingHz) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                strokeWidth = 2.dp
+                            WavyLoadingIndicator(
+                                indicatorSize = 16.dp,
+                                stroke = 2.dp,
+                                amplitude = 1.dp
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                         }
@@ -464,7 +472,7 @@ fun OptimizationsScreen(
                             selected = isSelected,
                             onClick = { animScale = value },
                             label = { Text(label, fontWeight = FontWeight.SemiBold, softWrap = false, maxLines = 1) },
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(morphingChipCorner(isSelected))
                         )
                     }
                 }
@@ -504,9 +512,10 @@ fun OptimizationsScreen(
                     contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp)
                 ) {
                     if (isApplyingAnim) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp
+                        WavyLoadingIndicator(
+                            indicatorSize = 16.dp,
+                            stroke = 2.dp,
+                            amplitude = 1.dp
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                     }
@@ -583,7 +592,7 @@ fun OptimizationsScreen(
                             selected = isSelected,
                             onClick = { selectedResolutionScale = value },
                             label = { Text(label, fontWeight = FontWeight.SemiBold, softWrap = false, maxLines = 1) },
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(morphingChipCorner(isSelected))
                         )
                     }
                 }
@@ -633,9 +642,10 @@ fun OptimizationsScreen(
                         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp)
                     ) {
                         if (isApplyingResolution) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                strokeWidth = 2.dp
+                            WavyLoadingIndicator(
+                                indicatorSize = 16.dp,
+                                stroke = 2.dp,
+                                amplitude = 1.dp
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                         }
@@ -915,10 +925,10 @@ fun OptimizationsScreen(
                     iconColor = MaterialTheme.colorScheme.onPrimaryContainer,
                     trailingContent = {
                         if (isApplyingDns) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.primary
+                            WavyLoadingIndicator(
+                                indicatorSize = 18.dp,
+                                stroke = 2.dp,
+                                amplitude = 1.dp
                             )
                         }
                     }
@@ -953,7 +963,7 @@ fun OptimizationsScreen(
                                 }
                             },
                             label = { Text(provider.title, fontWeight = FontWeight.SemiBold, softWrap = false, maxLines = 1) },
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(morphingChipCorner(isSelected))
                         )
                     }
                 }
@@ -1088,9 +1098,10 @@ fun OptimizationsScreen(
                                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                             ) {
                                 if (isApplyingPhantom) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(16.dp),
-                                        strokeWidth = 2.dp
+                                    WavyLoadingIndicator(
+                                        indicatorSize = 16.dp,
+                                        stroke = 2.dp,
+                                        amplitude = 1.dp
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                 }
@@ -1379,7 +1390,7 @@ fun OptimizationsScreen(
                                             maxLines = 1
                                         )
                                     },
-                                    shape = RoundedCornerShape(12.dp)
+                                    shape = RoundedCornerShape(morphingChipCorner(lowPowerTrigger == level))
                                 )
                             }
                         }
@@ -1424,7 +1435,7 @@ fun OptimizationsScreen(
                             contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp)
                         ) {
                             if (isFlushingLogs) {
-                                CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                                WavyLoadingIndicator(indicatorSize = 14.dp, stroke = 2.dp, amplitude = 1.dp)
                                 Spacer(modifier = Modifier.width(6.dp))
                             }
                             Text(
@@ -1476,7 +1487,7 @@ fun OptimizationsScreen(
                             contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp)
                         ) {
                             if (isTrimmingStorage) {
-                                CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                                WavyLoadingIndicator(indicatorSize = 14.dp, stroke = 2.dp, amplitude = 1.dp)
                                 Spacer(modifier = Modifier.width(6.dp))
                             }
                             Text(
@@ -1528,7 +1539,7 @@ fun OptimizationsScreen(
                             contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp)
                         ) {
                             if (isCompactingMemory) {
-                                CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                                WavyLoadingIndicator(indicatorSize = 14.dp, stroke = 2.dp, amplitude = 1.dp)
                                 Spacer(modifier = Modifier.width(6.dp))
                             }
                             Text(
@@ -1573,7 +1584,7 @@ fun OptimizationsScreen(
                             selected = isSel,
                             onClick = { artMode = mode },
                             label = { Text(title, fontWeight = FontWeight.SemiBold, softWrap = false, maxLines = 1) },
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(morphingChipCorner(isSel))
                         )
                     }
                 }
@@ -1607,9 +1618,10 @@ fun OptimizationsScreen(
                     contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp)
                 ) {
                     if (isApplyingArt) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp,
+                        WavyLoadingIndicator(
+                            indicatorSize = 18.dp,
+                            stroke = 2.dp,
+                            amplitude = 1.dp,
                             color = MaterialTheme.colorScheme.onPrimary
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -1642,7 +1654,11 @@ fun OptimizationsScreen(
                     modifier = Modifier.size(36.dp)
                 ) {
                     if (isLoadingState) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        WavyLoadingIndicator(
+                            indicatorSize = 20.dp,
+                            stroke = 2.5.dp,
+                            amplitude = 1.25.dp
+                        )
                     } else {
                         Icon(
                             Icons.Rounded.Refresh,

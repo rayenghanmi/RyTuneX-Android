@@ -15,6 +15,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -47,6 +48,10 @@ import com.rayenghanmi.rytunex.model.UadRecommendation
 import com.rayenghanmi.rytunex.theme.SemanticGreen
 import com.rayenghanmi.rytunex.theme.SemanticPurple
 import com.rayenghanmi.rytunex.theme.SemanticRed
+import com.rayenghanmi.rytunex.ui.components.Button
+import com.rayenghanmi.rytunex.ui.components.FilledTonalButton
+import com.rayenghanmi.rytunex.ui.components.OutlinedButton
+import com.rayenghanmi.rytunex.ui.components.TextButton
 import com.rayenghanmi.rytunex.ui.components.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -479,7 +484,7 @@ fun DebloatScreen(
                             }
                         ) {
                             if (isUpdatingUad) {
-                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                                WavyLoadingIndicator(indicatorSize = 20.dp, stroke = 2.dp, amplitude = 1.25.dp)
                             } else {
                                 Icon(Icons.Rounded.CloudDownload, contentDescription = "Update UAD Database")
                             }
@@ -487,7 +492,7 @@ fun DebloatScreen(
 
                         IconButton(onClick = { refreshApps() }) {
                             if (isScanning) {
-                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                                WavyLoadingIndicator(indicatorSize = 20.dp, stroke = 2.dp, amplitude = 1.25.dp)
                             } else {
                                 Icon(Icons.Rounded.Refresh, contentDescription = "Refresh Packages")
                             }
@@ -558,49 +563,49 @@ fun DebloatScreen(
                         selected = activeFilter == "recommended",
                         onClick = { activeFilter = "recommended" },
                         label = { Text("Recommended ($recommendedCount)", fontWeight = FontWeight.SemiBold, softWrap = false, maxLines = 1) },
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(morphingChipCorner(activeFilter == "recommended"))
                     )
 
                     FilterChip(
                         selected = activeFilter == "user",
                         onClick = { activeFilter = "user" },
                         label = { Text("User Apps ($userCount)", fontWeight = FontWeight.SemiBold, softWrap = false, maxLines = 1) },
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(morphingChipCorner(activeFilter == "user"))
                     )
 
                     FilterChip(
                         selected = activeFilter == "frozen",
                         onClick = { activeFilter = "frozen" },
                         label = { Text("Debloated ($frozenCount)", fontWeight = FontWeight.SemiBold, softWrap = false, maxLines = 1) },
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(morphingChipCorner(activeFilter == "frozen"))
                     )
 
                     FilterChip(
                         selected = activeFilter == "advanced",
                         onClick = { activeFilter = "advanced" },
                         label = { Text("Advanced ($advancedCount)", softWrap = false, maxLines = 1) },
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(morphingChipCorner(activeFilter == "advanced"))
                     )
 
                     FilterChip(
                         selected = activeFilter == "expert",
                         onClick = { activeFilter = "expert" },
                         label = { Text("Expert ($expertCount)", softWrap = false, maxLines = 1) },
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(morphingChipCorner(activeFilter == "expert"))
                     )
 
                     FilterChip(
                         selected = activeFilter == "unsafe",
                         onClick = { activeFilter = "unsafe" },
                         label = { Text("Unsafe ($unsafeCount)", softWrap = false, maxLines = 1) },
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(morphingChipCorner(activeFilter == "unsafe"))
                     )
 
                     FilterChip(
                         selected = activeFilter == "all",
                         onClick = { activeFilter = "all" },
                         label = { Text("All ($allActiveCount)", softWrap = false, maxLines = 1) },
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(morphingChipCorner(activeFilter == "all"))
                     )
                 }
             }
@@ -679,7 +684,7 @@ fun DebloatScreen(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            CircularProgressIndicator(modifier = Modifier.size(36.dp), strokeWidth = 3.dp)
+                            WavyLoadingIndicator(indicatorSize = 36.dp, stroke = 3.dp, amplitude = 2.5.dp)
                             Text(
                                 text = "Analyzing device packages...",
                                 style = MaterialTheme.typography.bodyMedium,
@@ -753,12 +758,14 @@ fun DebloatScreen(
                     contentType = { "debloat_app" }
                 ) { app ->
                     val isSelected = selectedPackageNames.contains(app.packageName)
-                    DebloatAppCard(
-                        app = app,
-                        isSelected = isSelected,
-                        onToggleSelect = onToggleSelect,
-                        onClickInspect = onClickInspect
-                    )
+                    Box(modifier = Modifier.animateItem()) {
+                        DebloatAppCard(
+                            app = app,
+                            isSelected = isSelected,
+                            onToggleSelect = onToggleSelect,
+                            onClickInspect = onClickInspect
+                        )
+                    }
                 }
             }
         }
@@ -948,7 +955,7 @@ fun DebloatScreen(
                         modifier = Modifier.size(36.dp)
                     ) {
                         if (isUpdatingUad) {
-                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                            WavyLoadingIndicator(indicatorSize = 18.dp, stroke = 2.dp, amplitude = 1.dp)
                         } else {
                             Icon(Icons.Rounded.CloudDownload, contentDescription = "Update UAD Database", modifier = Modifier.size(20.dp))
                         }
@@ -959,7 +966,7 @@ fun DebloatScreen(
                         modifier = Modifier.size(36.dp)
                     ) {
                         if (isScanning) {
-                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                            WavyLoadingIndicator(indicatorSize = 18.dp, stroke = 2.dp, amplitude = 1.dp)
                         } else {
                             Icon(Icons.Rounded.Refresh, contentDescription = "Refresh Packages", modifier = Modifier.size(20.dp))
                         }
