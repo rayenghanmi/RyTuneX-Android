@@ -68,7 +68,12 @@ object AdaptiveDeviceInspector {
         }
 
         val memory = inspectMemory(context)
-        val battery = inspectBattery(context)
+        if (isShizukuReady) {
+            try {
+                BatteryHealthManager.refreshHardwareMetrics()
+            } catch (_: Exception) {}
+        }
+        val battery = inspectBattery(context, isShizukuReady)
         val thermal = inspectThermal(context)
         val currentRefreshRate = readCurrentRefreshRate(context, baseDisplay.currentRefreshRate)
 
@@ -409,39 +414,8 @@ object AdaptiveDeviceInspector {
         )
     }
 
-    fun inspectBattery(context: Context): BatteryInfo {
-        val iFilter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
-        val batteryStatus = context.registerReceiver(null, iFilter)
-
-        val level = batteryStatus?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
-        val scale = batteryStatus?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
-        val batteryPct = if (level >= 0 && scale > 0) (level * 100 / scale) else 0
-
-        val tempTenths = batteryStatus?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0) ?: 0
-        val tempCelsius = tempTenths / 10.0f
-
-        val status = batteryStatus?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
-        val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
-                status == BatteryManager.BATTERY_STATUS_FULL
-
-        val healthCode = batteryStatus?.getIntExtra(BatteryManager.EXTRA_HEALTH, BatteryManager.BATTERY_HEALTH_UNKNOWN)
-        val health = when (healthCode) {
-            BatteryManager.BATTERY_HEALTH_GOOD -> "Good"
-            BatteryManager.BATTERY_HEALTH_OVERHEAT -> "Overheat"
-            BatteryManager.BATTERY_HEALTH_DEAD -> "Critical"
-            BatteryManager.BATTERY_HEALTH_OVER_VOLTAGE -> "Over Voltage"
-            else -> "Normal"
-        }
-
-        val voltageMv = batteryStatus?.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 0) ?: 0
-
-        return BatteryInfo(
-            level = batteryPct,
-            tempCelsius = tempCelsius,
-            health = health,
-            isCharging = isCharging,
-            voltageMv = voltageMv
-        )
+    fun inspectBattery(context: Context, isShizukuReady: Boolean = false): BatteryInfo {
+        return BatteryHealthManager.getLiveBatteryInfo(context, isShizukuReady)
     }
 
     fun inspectThermal(context: Context): ThermalInfo {

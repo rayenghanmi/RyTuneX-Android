@@ -45,7 +45,19 @@ data class BatteryInfo(
     val tempCelsius: Float = 0f,
     val health: String = "Good",
     val isCharging: Boolean = false,
-    val voltageMv: Int = 0
+    val voltageMv: Int = 0,
+    val cycleCount: Int? = null,
+    val isCycleHardwareVerified: Boolean = false,
+    val cycleSourceText: String = "Universal AOSP Model",
+    val healthPercent: Float? = null,
+    val wattage: Float = 0f,
+    val currentMa: Int = 0,
+    val designCapacityMah: Int = 0,
+    val actualCapacityMah: Int = 0,
+    val powerSource: String = "Battery",
+    val technology: String = "Li-ion",
+    val isFastCharging: Boolean = false,
+    val firstUseDate: String? = null
 )
 
 data class ThermalInfo(

@@ -79,6 +79,7 @@ fun DashboardScreen(
     var showAboutDialog by remember { mutableStateOf(false) }
     var showUpdateBanner by remember { mutableStateOf(true) }
     var showUpdateDialog by remember { mutableStateOf(false) }
+    var showBatteryHealthSheet by remember { mutableStateOf(false) }
 
     var deviceInfo by remember { mutableStateOf(DeviceInfo()) }
 
@@ -406,15 +407,27 @@ fun DashboardScreen(
                 } else {
                     "${String.format("%.1f", deviceInfo.battery.tempCelsius)}°C"
                 }
+                val currentHealthPct = deviceInfo.battery.healthPercent
+                val healthText = if (currentHealthPct != null) {
+                    "${currentHealthPct.toInt()}% Health"
+                } else {
+                    deviceInfo.battery.health
+                }
+                val cycleText = if (deviceInfo.battery.cycleCount != null) {
+                    " • ${deviceInfo.battery.cycleCount} cyc"
+                } else {
+                    ""
+                }
                 HardwareMetricTile(
                     title = "Battery & Health",
                     primaryValue = "${deviceInfo.battery.level}%",
-                    subtitle = "$tempFormatted • ${deviceInfo.battery.health}",
+                    subtitle = "$tempFormatted • $healthText$cycleText",
                     progress = deviceInfo.battery.level / 100f,
                     icon = Icons.Rounded.BatteryChargingFull,
                     animatedNumber = deviceInfo.battery.level.toFloat(),
                     animatedSuffix = "%",
                     accentColor = if (deviceInfo.battery.tempCelsius > 42) MaterialTheme.colorScheme.error else SemanticGreen,
+                    onClick = { showBatteryHealthSheet = true },
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
@@ -874,6 +887,19 @@ fun DashboardScreen(
                 releaseInfo = AppUpdateManager.latestReleaseInfo!!,
                 onDismissRequest = { showUpdateDialog = false },
                 onLogUpdate = onLogUpdate
+            )
+        }
+
+        if (showBatteryHealthSheet) {
+            BatteryHealthSheet(
+                battery = deviceInfo.battery,
+                isShizukuReady = isShizukuReady,
+                onDismiss = { showBatteryHealthSheet = false },
+                onRefresh = {
+                    scope.launch {
+                        deviceInfo = AdaptiveDeviceInspector.inspectFullDevice(context, isShizukuReady)
+                    }
+                }
             )
         }
     }
