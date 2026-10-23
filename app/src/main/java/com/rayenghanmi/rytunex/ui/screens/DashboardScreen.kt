@@ -80,6 +80,7 @@ fun DashboardScreen(
     var showUpdateBanner by remember { mutableStateOf(true) }
     var showUpdateDialog by remember { mutableStateOf(false) }
     var showBatteryHealthSheet by remember { mutableStateOf(false) }
+    var showWakelockSpotterSheet by remember { mutableStateOf(false) }
 
     var deviceInfo by remember { mutableStateOf(DeviceInfo()) }
 
@@ -207,10 +208,11 @@ fun DashboardScreen(
             val updateInfo = AppUpdateManager.latestReleaseInfo
             if (updateInfo?.isUpdateAvailable == true && showUpdateBanner) {
                 Card(
+                    shape = RoundedCornerShape(24.dp),
                     modifier = Modifier
                         .fillMaxWidth()
+                        .clip(RoundedCornerShape(24.dp))
                         .clickable { showUpdateDialog = true },
-                    shape = RoundedCornerShape(24.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -447,6 +449,58 @@ fun DashboardScreen(
                         .weight(1f)
                         .fillMaxHeight()
                 )
+            }
+
+            // Wakelock & Drain Spotter Quick Entry
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .clickable { showWakelockSpotterSheet = true }
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Rounded.SearchOff,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Wakelock & Drain Spotter",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Audit rogue CPU locks, wakeup alarms & background drain",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Icon(
+                        imageVector = Icons.Rounded.ChevronRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
             // Adaptive profiles
@@ -899,7 +953,18 @@ fun DashboardScreen(
                     scope.launch {
                         deviceInfo = AdaptiveDeviceInspector.inspectFullDevice(context, isShizukuReady)
                     }
+                },
+                onOpenWakelockSpotter = {
+                    showBatteryHealthSheet = false
+                    showWakelockSpotterSheet = true
                 }
+            )
+        }
+
+        if (showWakelockSpotterSheet) {
+            WakelockSpotterSheet(
+                isShizukuReady = isShizukuReady,
+                onDismiss = { showWakelockSpotterSheet = false }
             )
         }
     }

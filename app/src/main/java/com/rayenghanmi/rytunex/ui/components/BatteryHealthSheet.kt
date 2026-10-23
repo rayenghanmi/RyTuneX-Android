@@ -40,7 +40,8 @@ fun BatteryHealthSheet(
     battery: BatteryInfo,
     isShizukuReady: Boolean,
     onDismiss: () -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    onOpenWakelockSpotter: (() -> Unit)? = null
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val context = LocalContext.current
@@ -484,6 +485,7 @@ fun BatteryHealthSheet(
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
                 modifier = Modifier
                     .fillMaxWidth()
+                    .clip(RoundedCornerShape(22.dp))
                     .clickable { showDiagnostics = !showDiagnostics }
             ) {
                 Column(
@@ -655,6 +657,25 @@ fun BatteryHealthSheet(
             }
 
             // Quick Actions & System Settings
+            if (onOpenWakelockSpotter != null) {
+                Button(
+                    onClick = onOpenWakelockSpotter,
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.SearchOff,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Spot Wakelocks & Background Drain",
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+
             OutlinedButton(
                 onClick = {
                     try {

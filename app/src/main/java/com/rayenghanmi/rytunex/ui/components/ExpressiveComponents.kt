@@ -729,13 +729,20 @@ fun HardwareMetricTile(
         primaryValue
     }
 
+    val tileShape = RoundedCornerShape(20.dp)
     Card(
-        shape = RoundedCornerShape(20.dp),
+        shape = tileShape,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         modifier = modifier
             .defaultMinSize(minHeight = 126.dp)
-            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
+            .then(
+                if (onClick != null) {
+                    Modifier
+                        .clip(tileShape)
+                        .clickable { onClick() }
+                } else Modifier
+            )
     ) {
         Column(
             modifier = Modifier
@@ -801,14 +808,27 @@ fun HardwareMetricTile(
 
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 if (progress != null) {
-                    WavyLinearProgress(
-                        progress = progress,
-                        modifier = Modifier.fillMaxWidth(),
+                    val animatedProgress by animateFloatAsState(
+                        targetValue = progress.coerceIn(0f, 1f),
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioNoBouncy,
+                            stiffness = Spring.StiffnessLow
+                        ),
+                        label = "metricLinearProgress"
+                    )
+                    LinearProgressIndicator(
+                        progress = { animatedProgress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(CircleShape),
                         color = accentColor,
-                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        drawStopIndicator = {},
+                        gapSize = 0.dp
                     )
                 } else {
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                 }
 
                 Text(

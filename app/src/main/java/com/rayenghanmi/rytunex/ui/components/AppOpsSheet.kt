@@ -276,7 +276,12 @@ fun AppOpsSheet(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        CircularProgressIndicator(modifier = Modifier.size(36.dp))
+                        WavyLoadingIndicator(
+                            indicatorSize = 36.dp,
+                            stroke = 3.dp,
+                            amplitude = 2.5.dp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
                         Text(
                             text = "Reading AppOps privileges via Shizuku...",
                             style = MaterialTheme.typography.bodySmall,
