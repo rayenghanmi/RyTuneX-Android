@@ -613,6 +613,7 @@ fun GoogleSettingsRow(
     icon: ImageVector? = null,
     iconContainerColor: Color = MaterialTheme.colorScheme.primaryContainer,
     iconColor: Color = MaterialTheme.colorScheme.onPrimaryContainer,
+    badge: @Composable (() -> Unit)? = null,
     trailingContent: @Composable (() -> Unit)? = null,
     bottomContent: @Composable (() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
@@ -674,6 +675,12 @@ fun GoogleSettingsRow(
                 if (trailingContent != null) {
                     Spacer(modifier = Modifier.width(8.dp))
                     trailingContent()
+                }
+            }
+
+            if (badge != null) {
+                Box(modifier = Modifier.padding(vertical = 1.dp)) {
+                    badge()
                 }
             }
 

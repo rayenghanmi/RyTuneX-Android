@@ -29,6 +29,11 @@ import com.rayenghanmi.rytunex.engine.RyTuneXDeepEngine
 import com.rayenghanmi.rytunex.engine.SettingsManager
 import com.rayenghanmi.rytunex.engine.SystemTuningState
 import com.rayenghanmi.rytunex.theme.SemanticGreen
+import com.rayenghanmi.rytunex.model.TweakInfo
+import com.rayenghanmi.rytunex.model.TweakRegistry
+import com.rayenghanmi.rytunex.model.TweakSafetyLevel
+import com.rayenghanmi.rytunex.ui.components.TweakDetailsSheet
+import com.rayenghanmi.rytunex.ui.components.TweakSafetyBadge
 import com.rayenghanmi.rytunex.ui.components.Button
 import com.rayenghanmi.rytunex.ui.components.FilledTonalButton
 import com.rayenghanmi.rytunex.ui.components.OutlinedButton
@@ -88,6 +93,7 @@ fun OptimizationsScreen(
     var stayAwakeCharging by remember { mutableStateOf(cachedState?.isStayAwakeCharging ?: false) }
     var stickyBatterySaver by remember { mutableStateOf(cachedState?.isLowPowerSticky ?: false) }
     var lowPowerTrigger by remember { mutableStateOf(cachedState?.lowPowerTriggerLevel) }
+    var inspectingTweak by remember { mutableStateOf<TweakInfo?>(null) }
 
     // Render resolution override
     var nativeResolution by remember { mutableStateOf(cachedState?.nativeResolution) }
@@ -304,6 +310,7 @@ fun OptimizationsScreen(
             GoogleGroupedCard {
                 GoogleSettingsRow(
                     title = "Display Refresh Rate",
+                    badge = { TweakSafetyBadge(TweakSafetyLevel.SAFE) { inspectingTweak = TweakRegistry.get("display_refresh_rate") } },
                     subtitle = "Panel modes: ${supportedRates.joinToString { "${it.toInt()}Hz" }}",
                     icon = Icons.Rounded.Speed,
                     iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -448,6 +455,7 @@ fun OptimizationsScreen(
 
                 GoogleSettingsRow(
                     title = "Window Animation Duration Scale",
+                    badge = { TweakSafetyBadge(TweakSafetyLevel.SAFE) { inspectingTweak = TweakRegistry.get("anim_scale") } },
                     subtitle = "Current factor: ${String.format(Locale.US, "%.2f", animScale)}x",
                     icon = Icons.Rounded.Animation,
                     iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -534,6 +542,7 @@ fun OptimizationsScreen(
 
                 GoogleSettingsRow(
                     title = "Predictive Back Navigation Gesture",
+                    badge = { TweakSafetyBadge(TweakSafetyLevel.SAFE) { inspectingTweak = TweakRegistry.get("predictive_back") } },
                     subtitle = "Unlocks Android 13–15 fluid cross-activity predictive swipe transitions",
                     icon = Icons.AutoMirrored.Rounded.ArrowBack,
                     iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -566,6 +575,7 @@ fun OptimizationsScreen(
             GoogleGroupedCard {
                 GoogleSettingsRow(
                     title = "Output Resolution Override",
+                    badge = { TweakSafetyBadge(TweakSafetyLevel.ADVANCED) { inspectingTweak = TweakRegistry.get("resolution_override") } },
                     subtitle = "Native: ${nativeResolution?.first ?: "?"}x${nativeResolution?.second ?: "?"} • Active: ${
                         (overrideResolution ?: nativeResolution)?.let { "${it.first}x${it.second}" } ?: "?"
                     }. Scales the GPU render surface to reduce fill-rate work and improve frame pacing",
@@ -690,6 +700,7 @@ fun OptimizationsScreen(
             GoogleGroupedCard {
                 GoogleSettingsRow(
                     title = "Touchscreen Latency Boost",
+                    badge = { TweakSafetyBadge(TweakSafetyLevel.SAFE) { inspectingTweak = TweakRegistry.get("touch_boost") } },
                     subtitle = "Sets pointer speed +7, eliminates touch delay thresholds",
                     icon = Icons.Rounded.TouchApp,
                     iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -722,6 +733,7 @@ fun OptimizationsScreen(
 
                 GoogleSettingsRow(
                     title = "Disable GPU Window Blurs",
+                    badge = { TweakSafetyBadge(TweakSafetyLevel.MODERATE) { inspectingTweak = TweakRegistry.get("disable_blurs") } },
                     subtitle = "Eliminates shader compositing overhead, boosting frame rates",
                     icon = Icons.Rounded.BlurOff,
                     iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -754,6 +766,7 @@ fun OptimizationsScreen(
 
                 GoogleSettingsRow(
                     title = "Force Hardware Game Driver",
+                    badge = { TweakSafetyBadge(TweakSafetyLevel.SAFE) { inspectingTweak = TweakRegistry.get("game_driver") } },
                     subtitle = "Directs all app graphics rendering through vendor GPU driver",
                     icon = Icons.Rounded.SportsEsports,
                     iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -786,6 +799,7 @@ fun OptimizationsScreen(
 
                 GoogleSettingsRow(
                     title = "Hardware 2D GPU Rendering",
+                    badge = { TweakSafetyBadge(TweakSafetyLevel.SAFE) { inspectingTweak = TweakRegistry.get("force_hw_ui") } },
                     subtitle = "Offloads all 2D screen drawing to the GPU (force_hw_ui), reducing CPU rendering bottlenecks on older & budget chips",
                     icon = Icons.Rounded.Speed,
                     iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -818,6 +832,7 @@ fun OptimizationsScreen(
 
                 GoogleSettingsRow(
                     title = "Vulkan HWUI Graphics Backend",
+                    badge = { TweakSafetyBadge(TweakSafetyLevel.ADVANCED) { inspectingTweak = TweakRegistry.get("vulkan_backend") } },
                     subtitle = "Routes app draw-calls through Vulkan (skiavk) instead of OpenGL ES (skiagl), reducing CPU driver overhead on Android 10+. Applies to apps launched after the switch",
                     icon = Icons.Rounded.DeveloperBoard,
                     iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -849,6 +864,7 @@ fun OptimizationsScreen(
 
                 GoogleSettingsRow(
                     title = "Force GPU Compositing (Disable HW Overlays)",
+                    badge = { TweakSafetyBadge(TweakSafetyLevel.EXPERIMENTAL) { inspectingTweak = TweakRegistry.get("disable_hw_overlays") } },
                     subtitle = "Runs all layer composition on the GPU. Stabilizes frame pacing and blur rendering, may increase power draw",
                     icon = Icons.Rounded.Layers,
                     iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -882,6 +898,7 @@ fun OptimizationsScreen(
 
                 GoogleSettingsRow(
                     title = "Cached Apps Freezer",
+                    badge = { TweakSafetyBadge(TweakSafetyLevel.SAFE) { inspectingTweak = TweakRegistry.get("app_freezer") } },
                     subtitle = "Freezes the CPU of cached background apps instead of only limiting them. Applies to apps newly entering the cache",
                     icon = Icons.Rounded.AcUnit,
                     iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -915,6 +932,7 @@ fun OptimizationsScreen(
             GoogleGroupedCard {
                 GoogleSettingsRow(
                     title = "Private Encrypted DNS",
+                    badge = { TweakSafetyBadge(TweakSafetyLevel.SAFE) { inspectingTweak = TweakRegistry.get("private_dns") } },
                     subtitle = if (customDnsHost != null && selectedDns == DnsProvider.CLOUDFLARE && !customDnsHost.orEmpty().contains("cloudflare")) {
                         "Active Custom: $customDnsHost"
                     } else {
@@ -975,6 +993,7 @@ fun OptimizationsScreen(
 
                 GoogleSettingsRow(
                     title = "Wi-Fi & Bluetooth Radio Saver",
+                    badge = { TweakSafetyBadge(TweakSafetyLevel.MODERATE) { inspectingTweak = TweakRegistry.get("radio_saver") } },
                     subtitle = "Disables continuous background location scans and radio keepalive",
                     icon = Icons.Rounded.WifiFind,
                     iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -1006,6 +1025,7 @@ fun OptimizationsScreen(
 
                 GoogleSettingsRow(
                     title = "Wi-Fi Scan Throttle Bypass",
+                    badge = { TweakSafetyBadge(TweakSafetyLevel.MODERATE) { inspectingTweak = TweakRegistry.get("wifi_scan_throttle") } },
                     subtitle = "Removes the scan backoff between background Wi-Fi scans. Faster GPS locks, indoor positioning and roaming reconnection",
                     icon = Icons.Rounded.WifiFind,
                     iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -1039,6 +1059,7 @@ fun OptimizationsScreen(
             GoogleGroupedCard {
                 GoogleSettingsRow(
                     title = "Phantom Process Killer Bypass",
+                    badge = { TweakSafetyBadge(TweakSafetyLevel.MODERATE) { inspectingTweak = TweakRegistry.get("phantom_killer") } },
                     subtitle = if (phantomBypassed) {
                         "Active: max_phantom_processes=2,147,483,647 (No background killing)"
                     } else {
@@ -1124,6 +1145,7 @@ fun OptimizationsScreen(
 
                 GoogleSettingsRow(
                     title = "Block Telemetry & Error Logging",
+                    badge = { TweakSafetyBadge(TweakSafetyLevel.SAFE) { inspectingTweak = TweakRegistry.get("block_telemetry") } },
                     subtitle = "Reduces continuous write transactions to dropbox & netstats",
                     icon = Icons.Rounded.BugReport,
                     iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -1156,6 +1178,7 @@ fun OptimizationsScreen(
 
                 GoogleSettingsRow(
                     title = "Aggressive Doze & Deep Sleep",
+                    badge = { TweakSafetyBadge(TweakSafetyLevel.MODERATE) { inspectingTweak = TweakRegistry.get("aggressive_doze") } },
                     subtitle = "Enforces rapid transition into deep sleep when screen is turned off",
                     icon = Icons.Rounded.Bedtime,
                     iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -1187,6 +1210,7 @@ fun OptimizationsScreen(
 
                 GoogleSettingsRow(
                     title = "App Standby & Doze Buckets",
+                    badge = { TweakSafetyBadge(TweakSafetyLevel.SAFE) { inspectingTweak = TweakRegistry.get("app_standby") } },
                     subtitle = "Restricts idle apps based on usage buckets, covering CPU, network and job scheduling",
                     icon = Icons.Rounded.Snooze,
                     iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -1220,6 +1244,7 @@ fun OptimizationsScreen(
 
                 GoogleSettingsRow(
                     title = "Adaptive On-Device Battery",
+                    badge = { TweakSafetyBadge(TweakSafetyLevel.SAFE) { inspectingTweak = TweakRegistry.get("adaptive_battery") } },
                     subtitle = "System-managed Doze anticipation using the device power model. Disable to keep background connectivity unrestricted",
                     icon = Icons.Rounded.BatterySaver,
                     iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -1253,6 +1278,7 @@ fun OptimizationsScreen(
 
                 GoogleSettingsRow(
                     title = "Disable Network Stats Collection",
+                    badge = { TweakSafetyBadge(TweakSafetyLevel.MODERATE) { inspectingTweak = TweakRegistry.get("netstats_disable") } },
                     subtitle = "Stops periodic netstats accounting and its flash writes, lowering background disk I/O. Per-app traffic history stops updating",
                     icon = Icons.Rounded.DataUsage,
                     iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -1286,6 +1312,7 @@ fun OptimizationsScreen(
 
                 GoogleSettingsRow(
                     title = "Stay Awake While Charging",
+                    badge = { TweakSafetyBadge(TweakSafetyLevel.MODERATE) { inspectingTweak = TweakRegistry.get("stay_awake_charging") } },
                     subtitle = "Keeps the screen on while charging on AC, USB or wireless",
                     icon = Icons.Rounded.ScreenLockPortrait,
                     iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -1319,6 +1346,7 @@ fun OptimizationsScreen(
 
                 GoogleSettingsRow(
                     title = "Sticky Battery Saver",
+                    badge = { TweakSafetyBadge(TweakSafetyLevel.SAFE) { inspectingTweak = TweakRegistry.get("sticky_battery_saver") } },
                     subtitle = "Keeps Battery Saver on after a full recharge until disabled manually",
                     icon = Icons.Rounded.BatteryChargingFull,
                     iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -1352,6 +1380,7 @@ fun OptimizationsScreen(
 
                 GoogleSettingsRow(
                     title = "Automatic Battery Saver Trigger",
+                    badge = { TweakSafetyBadge(TweakSafetyLevel.SAFE) { inspectingTweak = TweakRegistry.get("auto_battery_saver_trigger") } },
                     subtitle = "Enters Battery Saver when the charge level drops to the selected threshold",
                     icon = Icons.Rounded.BatteryAlert,
                     iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -1404,6 +1433,7 @@ fun OptimizationsScreen(
 
                 GoogleSettingsRow(
                     title = "Flush Log Buffers",
+                    badge = { TweakSafetyBadge(TweakSafetyLevel.SAFE) { inspectingTweak = TweakRegistry.get("flush_log_buffers") } },
                     subtitle = "Clears logcat buffers and the kernel dmesg ring buffer",
                     icon = Icons.Rounded.Terminal,
                     iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -1456,6 +1486,7 @@ fun OptimizationsScreen(
             GoogleGroupedCard {
                 GoogleSettingsRow(
                     title = "UFS & eMMC Flash Storage TRIM",
+                    badge = { TweakSafetyBadge(TweakSafetyLevel.SAFE) { inspectingTweak = TweakRegistry.get("storage_trim") } },
                     subtitle = "Executes kernel fstrim on all NAND flash partitions to restore write performance and clear dirty blocks",
                     icon = Icons.Rounded.Storage,
                     iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -1508,6 +1539,7 @@ fun OptimizationsScreen(
 
                 GoogleSettingsRow(
                     title = "Kernel ZRAM Memory Compaction",
+                    badge = { TweakSafetyBadge(TweakSafetyLevel.SAFE) { inspectingTweak = TweakRegistry.get("memory_compaction") } },
                     subtitle = "Forces full kernel heap compaction and compresses background anonymous pages into ZRAM to free physical RAM",
                     icon = Icons.Rounded.Compress,
                     iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -1560,6 +1592,7 @@ fun OptimizationsScreen(
             GoogleGroupedCard {
                 GoogleSettingsRow(
                     title = "AOT Bytecode Pre-Compilation",
+                    badge = { TweakSafetyBadge(TweakSafetyLevel.SAFE) { inspectingTweak = TweakRegistry.get("art_compilation") } },
                     subtitle = "Pre-compiles DEX into native machine code to eliminate JIT stutter",
                     icon = Icons.Rounded.Bolt,
                     iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -1670,6 +1703,13 @@ fun OptimizationsScreen(
                 }
             }
         )
+
+        inspectingTweak?.let { tweak ->
+            TweakDetailsSheet(
+                tweak = tweak,
+                onDismiss = { inspectingTweak = null }
+            )
+        }
 
         // Tweak confirmation dialog
         pendingConfirmAction?.let { action ->
